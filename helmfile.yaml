@@ -1,0 +1,113 @@
+---
+# gpu-mon Helmfile
+# Environments: macbook (Docker Compose only), homelab, corp
+#
+# Usage:
+#   helmfile -e homelab diff
+#   helmfile -e homelab sync
+#   helmfile -e corp sync  (requires gpu-mon-corp symlink)
+
+environments:
+  homelab:
+    values:
+      - environments/defaults.yaml
+      - environments/homelab/values.yaml
+  corp:
+    values:
+      - environments/defaults.yaml
+      - environments/corp/values.yaml  # symlinked from gpu-mon-corp
+
+---
+
+# Helm repositories (skipped in corp airgap mode; charts come from local .tgz)
+repositories:
+  {{ if ne .Environment.Name "corp" }}
+  - name: victoriametrics
+    url: https://victoriametrics.github.io/helm-charts
+  - name: grafana
+    url: https://grafana.github.io/helm-charts
+  - name: vector
+    url: https://helm.vector.dev
+  - name: clickhouse-operator
+    url: https://docs.altinity.com/clickhouse-operator
+  {{ end }}
+
+---
+
+releases:
+  # ─── VictoriaMetrics Cluster ──────────────────────────────────────────────
+  - name: victoriametrics
+    namespace: monitoring
+    {{ if eq .Environment.Name "corp" }}
+    chart: "{{ .Values.charts_dir }}/victoria-metrics-cluster-0.14.17.tgz"
+    {{ else }}
+    chart: victoriametrics/victoria-metrics-cluster
+    version: "0.14.17"
+    {{ end }}
+    values:
+      - environments/{{ .Environment.Name }}/victoriametrics.yaml
+
+  # ─── Central vmagent ──────────────────────────────────────────────────────
+  - name: vmagent-central
+    namespace: monitoring
+    chart: charts/vmagent-central
+    values:
+      - environments/{{ .Environment.Name }}/vmagent.yaml
+
+  # ─── ClickHouse Operator ──────────────────────────────────────────────────
+  - name: clickhouse-operator
+    namespace: clickhouse
+    {{ if eq .Environment.Name "corp" }}
+    chart: "{{ .Values.charts_dir }}/altinity-clickhouse-operator-0.24.0.tgz"
+    {{ else }}
+    chart: clickhouse-operator/altinity-clickhouse-operator
+    version: "0.24.0"
+    {{ end }}
+
+  # ─── ClickHouse Cluster ───────────────────────────────────────────────────
+  - name: clickhouse
+    namespace: clickhouse
+    chart: charts/clickhouse-cluster
+    needs:
+      - clickhouse/clickhouse-operator
+    values:
+      - environments/{{ .Environment.Name }}/clickhouse.yaml
+
+  # ─── Grafana ──────────────────────────────────────────────────────────────
+  - name: grafana
+    namespace: monitoring
+    {{ if eq .Environment.Name "corp" }}
+    chart: "{{ .Values.charts_dir }}/grafana-8.8.2.tgz"
+    {{ else }}
+    chart: grafana/grafana
+    version: "8.8.2"
+    {{ end }}
+    values:
+      - environments/{{ .Environment.Name }}/grafana.yaml
+
+  # ─── Vector Aggregator ────────────────────────────────────────────────────
+  - name: vector
+    namespace: monitoring
+    {{ if eq .Environment.Name "corp" }}
+    chart: "{{ .Values.charts_dir }}/vector-0.36.1.tgz"
+    {{ else }}
+    chart: vector/vector
+    version: "0.36.1"
+    {{ end }}
+    values:
+      - environments/{{ .Environment.Name }}/vector.yaml
+
+  # ─── Metadata Collector ───────────────────────────────────────────────────
+  - name: metadata-collector
+    namespace: monitoring
+    chart: charts/metadata-collector
+    values:
+      - environments/{{ .Environment.Name }}/metadata-collector.yaml
+    # Only deploy in corp; homelab uses mock data
+    condition: metadata_collector.enabled
+
+  # ─── Mock DCGM Exporter (homelab only) ───────────────────────────────────
+  - name: mock-dcgm-exporter
+    namespace: monitoring
+    chart: charts/mock-dcgm-exporter
+    condition: mock_dcgm.enabled

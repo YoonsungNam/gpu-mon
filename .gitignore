@@ -1,0 +1,39 @@
+# ═══════════════════════════════════════
+# Corp environment (managed in separate private repo)
+# NEVER commit these — they are symlinked at deploy time
+# ═══════════════════════════════════════
+environments/corp/
+ansible/inventory/corp*
+alerting/alertmanager/corp*
+
+# ═══════════════════════════════════════
+# Secrets / sensitive data
+# ═══════════════════════════════════════
+*.secret
+*.secret.yaml
+.env.corp
+**/secrets/
+.env.local
+
+# ═══════════════════════════════════════
+# Build artifacts
+# ═══════════════════════════════════════
+airgap-bundle/
+*.tar.gz
+
+# ═══════════════════════════════════════
+# General
+# ═══════════════════════════════════════
+.DS_Store
+*.swp
+*.swo
+*~
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/

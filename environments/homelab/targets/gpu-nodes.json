@@ -1,0 +1,12 @@
+[
+  {
+    "targets": [
+      "mock-dcgm-exporter.monitoring.svc:9400"
+    ],
+    "labels": {
+      "env": "homelab",
+      "cluster": "homelab-cluster",
+      "workload_type": "training"
+    }
+  }
+]

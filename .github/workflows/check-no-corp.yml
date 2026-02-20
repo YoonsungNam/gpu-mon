@@ -1,0 +1,39 @@
+name: Check No Corp Files
+
+on:
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  check-no-corp:
+    name: Ensure no corp files in PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for corp files
+        run: |
+          echo "Checking for corp-specific files..."
+
+          FOUND=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | \
+            grep -E '(^|/)corp/' || true)
+
+          if [[ -n "${FOUND}" ]]; then
+            echo "ERROR: Corp files detected in PR:"
+            echo "${FOUND}"
+            echo ""
+            echo "Corp-specific configs must stay in the private gpu-mon-corp repo."
+            exit 1
+          fi
+
+          echo "OK: No corp files found."
+
+      - name: Verify .gitignore covers corp paths
+        run: |
+          grep -q "environments/corp/" .gitignore || {
+            echo "ERROR: .gitignore missing 'environments/corp/' entry"
+            exit 1
+          }
+          echo "OK: .gitignore corp entries present."

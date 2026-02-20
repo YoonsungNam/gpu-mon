@@ -1,0 +1,27 @@
+---
+# Deploy node-level agents (DCGM Exporter + Vector Agent) to GPU nodes.
+# Works for both Baremetal and VM environments.
+#
+# Usage:
+#   ansible-playbook -i inventory/homelab.ini playbooks/deploy-node-agents.yaml
+#   ansible-playbook -i inventory/corp.ini playbooks/deploy-node-agents.yaml  # (symlinked)
+
+- name: Deploy GPU monitoring node agents
+  hosts: gpu_nodes
+  become: true
+  vars:
+    dcgm_version: "3.3.8-3.6.0-ubuntu22.04"
+    vector_version: "0.42.0"
+    vector_aggregator_host: "{{ hostvars['k8s-control']['ansible_host'] | default('vector-aggregator.monitoring.svc') }}"
+    vector_aggregator_port: 6000
+
+  roles:
+    - dcgm-exporter
+    - vector-agent
+    - node-exporter
+
+  post_tasks:
+    - name: Update File SD target list in ConfigMap
+      delegate_to: localhost
+      run_once: true
+      include_tasks: tasks/update-file-sd.yaml

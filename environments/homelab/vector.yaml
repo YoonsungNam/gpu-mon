@@ -1,0 +1,45 @@
+# Vector Aggregator Helm values — homelab overrides
+# Receives logs from node Vector Agents, normalizes them, sinks to ClickHouse.
+
+role: Aggregator
+
+customConfig:
+  data_dir: /vector-data-dir
+
+  sources:
+    vector_agent_in:
+      type: vector
+      address: "0.0.0.0:6000"
+
+  transforms:
+    standardize:
+      type: remap
+      inputs: ["vector_agent_in"]
+      source: |
+        # Normalize to gpu_unified_logs schema
+        .log_level = upcase(string!(.level ?? "INFO"))
+        .source    = string!(.source ?? "system")
+        .metadata  = encode_json(.metadata ?? {})
+
+  sinks:
+    clickhouse_logs:
+      type: clickhouse
+      inputs: ["standardize"]
+      endpoint: "http://clickhouse.clickhouse.svc:8123"
+      database: gpu_monitoring
+      table: gpu_unified_logs
+      compression: gzip
+      batch:
+        max_bytes: 10485760
+        timeout_secs: 10
+
+service:
+  ports:
+    - name: vector
+      port: 6000
+      protocol: TCP
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi

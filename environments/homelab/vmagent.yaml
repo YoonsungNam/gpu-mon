@@ -1,0 +1,64 @@
+# Central vmagent Helm values — homelab overrides
+# Pulls metrics from all exporters and remote_writes to VictoriaMetrics.
+
+replicaCount: 1
+
+remoteWrite:
+  - url: "http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prometheus/"
+
+# Scrape configuration
+scrapeConfig:
+  global:
+    scrape_interval: 15s
+    evaluation_interval: 15s
+
+  scrape_configs:
+    # ── Mock DCGM Exporter (homelab) ──────────────────────────────────────
+    - job_name: "mock-dcgm"
+      static_configs:
+        - targets:
+            - "mock-dcgm-exporter.monitoring.svc:9400"
+          labels:
+            env: homelab
+            cluster: homelab-cluster
+            workload_type: training
+
+    # ── node-exporter (K8s DaemonSet) ─────────────────────────────────────
+    - job_name: "node-exporter"
+      kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names: ["monitoring"]
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+          regex: "node-exporter"
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_node_name]
+          target_label: node
+
+    # ── kube-state-metrics ────────────────────────────────────────────────
+    - job_name: "kube-state-metrics"
+      kubernetes_sd_configs:
+        - role: service
+          namespaces:
+            names: ["monitoring"]
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_service_label_app_kubernetes_io_name]
+          regex: "kube-state-metrics"
+          action: keep
+
+    # ── File SD: Baremetal GPU nodes (Ansible-managed) ────────────────────
+    # Used in corp/homelab when baremetal nodes exist.
+    # Empty in homelab (mock exporter handles this role).
+    # - job_name: "baremetal-dcgm"
+    #   file_sd_configs:
+    #     - files: ["/etc/vmagent/sd/gpu-nodes.json"]
+    #       refresh_interval: 60s
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

@@ -1,0 +1,34 @@
+apiVersion: clickhouse.altinity.com/v1
+kind: ClickHouseInstallation
+metadata:
+  name: {{ .Values.clickhouse.cluster.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  configuration:
+    clusters:
+      - name: {{ .Values.clickhouse.cluster.name }}
+        layout:
+          shardsCount: {{ .Values.clickhouse.cluster.layout.shardsCount }}
+          replicasCount: {{ .Values.clickhouse.cluster.layout.replicasCount }}
+    settings:
+      max_connections: "4096"
+      keep_alive_timeout: "3"
+  templates:
+    podTemplates:
+      - name: default
+        spec:
+          containers:
+            - name: clickhouse
+              image: {{ .Values.clickhouse.image }}
+              resources:
+                {{- toYaml .Values.clickhouse.resources | nindent 16 }}
+    volumeClaimTemplates:
+      - name: default
+        spec:
+          {{- if .Values.clickhouse.storage.storageClassName }}
+          storageClassName: {{ .Values.clickhouse.storage.storageClassName }}
+          {{- end }}
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: {{ .Values.clickhouse.storage.size }}

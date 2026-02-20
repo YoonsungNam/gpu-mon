@@ -1,0 +1,23 @@
+# Vector Agent — lightweight log forwarder (no parsing here, offloaded to aggregator)
+
+[sources.syslog]
+type = "journald"
+include_units = ["dcgm-exporter.service", "kubelet.service", "containerd.service"]
+
+[sources.gpu_driver_logs]
+type = "file"
+include = ["/var/log/nvidia-*.log", "/var/log/Xorg.*.log"]
+
+[transforms.add_metadata]
+type = "remap"
+inputs = ["syslog", "gpu_driver_logs"]
+source = '''
+  .node_id  = get_hostname!()
+  .env      = "{{ env | default('baremetal') }}"
+  .cluster_id = "{{ cluster_id | default('default') }}"
+'''
+
+[sinks.aggregator]
+type = "vector"
+inputs = ["add_metadata"]
+address = "{{ vector_aggregator_host }}:{{ vector_aggregator_port }}"

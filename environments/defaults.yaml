@@ -1,0 +1,34 @@
+# Common defaults shared across all environments.
+# Environment-specific files override these values.
+
+image_registry: ghcr.io/yoonsungnam/gpu-mon
+image_tag: latest
+
+# Set to true in corp/airgap environments
+charts_dir: ""
+
+# Feature flags
+metadata_collector:
+  enabled: false
+
+mock_dcgm:
+  enabled: false
+
+# Monitoring namespace
+namespace: monitoring
+
+# VictoriaMetrics remote write endpoint (within cluster)
+vminsert_url: "http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prometheus/"
+
+# ClickHouse connection
+clickhouse:
+  host: clickhouse.clickhouse.svc
+  port: 9000
+  database: gpu_monitoring
+  username: default
+
+# Retention
+retention:
+  metrics_days: 90       # VictoriaMetrics data retention
+  logs_days: 30          # ClickHouse gpu_unified_logs TTL
+  metadata_days: 180     # ClickHouse s2_jobs TTL

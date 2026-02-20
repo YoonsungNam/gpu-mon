@@ -1,0 +1,8 @@
+apiVersion: v2
+name: metadata-collector
+description: >
+  Polls legacy system APIs (Samsung S2 batch scheduler, VMware vCenter)
+  and ingests metadata into ClickHouse for enrichment with GPU metrics.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

@@ -1,0 +1,14 @@
+[Unit]
+Description=NVIDIA DCGM Exporter
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/dcgm-exporter \
+  --address=:9400 \
+  --collectors=/etc/dcgm-exporter/counters.csv
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
