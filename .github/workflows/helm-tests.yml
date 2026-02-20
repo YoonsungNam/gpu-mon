@@ -1,0 +1,61 @@
+---
+# Helm chart tests — renders and validates custom Helm charts.
+# Runs on every push and pull request.
+#
+# Requires the helm-unittest plugin:
+#   helm plugin install https://github.com/helm-unittest/helm-unittest
+
+name: Helm Chart Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  helm-lint:
+    name: helm lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "3.14.4"
+
+      - name: Lint all custom charts
+        run: |
+          for chart in charts/*/; do
+            echo "=== Linting $chart ==="
+            helm lint "$chart"
+          done
+
+  helm-unittest:
+    name: helm-unittest
+    runs-on: ubuntu-latest
+    needs: helm-lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "3.14.4"
+
+      - name: Install helm-unittest plugin
+        run: |
+          helm plugin install https://github.com/helm-unittest/helm-unittest \
+            --version v0.4.4
+
+      - name: Run helm unit tests — vmagent-central
+        run: helm unittest charts/vmagent-central
+
+      - name: Run helm unit tests — mock-dcgm-exporter
+        run: helm unittest charts/mock-dcgm-exporter
+
+      - name: Run helm unit tests — metadata-collector
+        run: helm unittest charts/metadata-collector

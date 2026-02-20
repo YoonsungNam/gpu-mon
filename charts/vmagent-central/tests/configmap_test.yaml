@@ -1,0 +1,24 @@
+suite: vmagent-central configmap
+templates:
+  - templates/configmap.yaml
+
+tests:
+  - it: renders a ConfigMap
+    asserts:
+      - isKind:
+          of: ConfigMap
+
+  - it: has config.yaml key in data
+    asserts:
+      - isNotNull:
+          path: data["config.yaml"]
+
+  - it: embeds scrapeConfig values into config.yaml
+    set:
+      scrapeConfig:
+        global:
+          scrape_interval: 15s
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "scrape_interval"

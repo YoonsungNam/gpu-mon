@@ -1,0 +1,92 @@
+---
+# Component and E2E tests — require the full Docker Compose stack.
+# Triggered on pushes / PRs targeting dev or main, and manually.
+#
+# Pipeline:
+#   1. Build & start the Docker Compose stack (make dev-up)
+#   2. Wait for all services to be ready
+#   3. Run Layer 3 component tests
+#   4. Run Layer 4 E2E tests
+#   5. Always tear down the stack
+
+name: Component & E2E Tests
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+  workflow_dispatch:
+
+jobs:
+  component-e2e:
+    name: Component + E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install test dependencies
+        run: pip install -e ".[test]"
+
+      - name: Build Docker images
+        run: make build-images
+
+      - name: Start Docker Compose stack
+        run: make dev-up
+
+      - name: Wait for stack to be ready
+        run: |
+          echo "Waiting for mock-dcgm-exporter health..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9400/health; then
+              echo "Stack is ready"
+              break
+            fi
+            echo "Attempt $i/30 — waiting 5s..."
+            sleep 5
+          done
+          curl -sf http://localhost:9400/health || (echo "Stack not ready after 150s" && exit 1)
+
+      - name: Wait for VictoriaMetrics to be ready
+        run: |
+          for i in $(seq 1 12); do
+            if curl -sf http://localhost:8481/select/0/prometheus/api/v1/query?query=up; then
+              echo "vmselect ready"
+              break
+            fi
+            sleep 5
+          done
+
+      - name: Wait for Grafana to be ready
+        run: |
+          for i in $(seq 1 12); do
+            if curl -sf http://localhost:3000/api/health; then
+              echo "Grafana ready"
+              break
+            fi
+            sleep 5
+          done
+
+      - name: Run Layer 3 — Component tests
+        run: pytest -m component -v --tb=short
+
+      - name: Run Layer 4 — E2E tests
+        run: pytest -m e2e -v --tb=short
+
+      - name: Dump service logs on failure
+        if: failure()
+        run: |
+          echo "=== Docker Compose logs ==="
+          make dev-logs || docker compose -f compose/docker-compose.yaml logs --tail=100
+
+      - name: Tear down Docker Compose stack
+        if: always()
+        run: make dev-down

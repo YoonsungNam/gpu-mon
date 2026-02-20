@@ -1,0 +1,27 @@
+suite: mock-dcgm-exporter service
+templates:
+  - templates/service.yaml
+
+tests:
+  - it: renders a Service
+    asserts:
+      - isKind:
+          of: Service
+
+  - it: exposes port 9400
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 9400
+
+  - it: has prometheus scrape annotation
+    asserts:
+      - equal:
+          path: metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+
+  - it: has prometheus port annotation
+    asserts:
+      - equal:
+          path: metadata.annotations["prometheus.io/port"]
+          value: "9400"

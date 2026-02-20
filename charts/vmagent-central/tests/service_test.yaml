@@ -1,0 +1,21 @@
+suite: vmagent-central service
+templates:
+  - templates/service.yaml
+
+tests:
+  - it: renders a Service
+    asserts:
+      - isKind:
+          of: Service
+
+  - it: exposes port 8429
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 8429
+
+  - it: defaults to ClusterIP type
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP

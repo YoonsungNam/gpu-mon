@@ -1,0 +1,50 @@
+---
+# Unit tests — pure Python, no external services required.
+# Runs on every push to any branch and on every pull request.
+
+name: Unit Tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  unit:
+    name: Python unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install test dependencies
+        run: pip install -e ".[test]"
+
+      - name: Run unit tests
+        run: pytest -m unit -v --tb=short
+
+  mock-dcgm-unit:
+    name: mock-dcgm-exporter unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install test dependencies
+        run: pip install -e ".[test]"
+
+      - name: Run mock-dcgm unit tests
+        run: pytest src/mock-dcgm-exporter/tests/ -v --tb=short
