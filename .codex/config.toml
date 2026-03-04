@@ -1,0 +1,6 @@
+# Draft project-level Codex config for gpu-mon.
+# If your local Codex setup does not auto-load repo-local config,
+# merge this entry into ~/.codex/config.toml.
+
+[projects."/home/mini/github/gpu-mon"]
+trust_level = "trusted"
