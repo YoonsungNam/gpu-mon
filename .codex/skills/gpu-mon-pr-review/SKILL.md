@@ -11,9 +11,16 @@ Use this skill for repository-specific PR review work.
 
 Find defects and deployment risks before style issues. The primary output is a findings-first review with concise evidence.
 
+## Branch Policy
+
+- Use `dev` as the default review base branch.
+- Assume PRs merge into `dev` first.
+- Treat `dev` as the branch used to test, debug, and validate execution on homelab and production-oriented environments before promotion to `main`.
+- Include `main` mergeability as a secondary check when a change introduces temporary debug logic, environment-specific behavior, or validation-only code.
+
 ## Review Workflow
 
-1. Start from the diff, not assumptions. Inspect changed files, diff stats, and branch context first.
+1. Start from the diff against `dev`, not assumptions. Inspect changed files, diff stats, and branch context first.
 2. Classify the PR by layer:
    - platform config: `helmfile.yaml`, `environments/`, `compose/`
    - deployment automation: `ansible/`, `scripts/`
@@ -34,6 +41,7 @@ Find defects and deployment risks before style issues. The primary output is a f
 - Shared behavior belongs in base environments and reusable charts, not in one-off overlays.
 - Pull metrics, push logs, and storage schemas form cross-component contracts. Review changes to names, labels, ports, and table fields as compatibility risks.
 - Deployment changes should be evaluated for both local iteration (`compose/`) and cluster deployment (`helmfile.yaml`, `ansible/`) when relevant.
+- Because `dev` is the validation branch, temporary instrumentation or debug-oriented changes need an explicit cleanup or promotion plan before eventual merge to `main`.
 
 ## What To Flag
 

@@ -6,6 +6,13 @@ This repository is a public baseline for `gpu-mon`, a GPU observability platform
 
 Use this file when reviewing or changing code in this repo with Codex.
 
+## Branch Strategy
+
+- Review all pull requests against `dev`, not `main`, unless the user explicitly asks for a different comparison base.
+- Treat `dev` as the integration branch for testing, debugging, and validating `gpu-mon` behavior in homelab and production-like execution paths.
+- Treat `main` as the promotion target after changes have already been validated through `dev`.
+- When reviewing, evaluate whether a change is safe for `dev` deployment and whether it preserves a clean eventual merge path from `dev` to `main`.
+
 ## Core Review Principles
 
 1. Prioritize correctness over style. Focus first on bugs, regressions, unsafe defaults, and missing validation.
@@ -31,6 +38,7 @@ Use this file when reviewing or changing code in this repo with Codex.
 - Python service changes preserve adapter boundaries, configuration loading, and failure handling.
 - Schema or telemetry changes document downstream impact on dashboards, alerts, and queries.
 - New paths follow the existing repository layout instead of introducing parallel conventions.
+- PR diffs and review comments assume `dev` as the base branch and consider downstream mergeability into `main`.
 
 ## Expected Review Output
 
