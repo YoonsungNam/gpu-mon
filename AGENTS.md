@@ -9,6 +9,7 @@ Use this file when reviewing or changing code in this repo with Codex.
 ## Branch Strategy
 
 - Review all pull requests against `dev`, not `main`, unless the user explicitly asks for a different comparison base.
+- Allow base-branch exceptions only for explicit `hotfix/*` or `release/*` review requests.
 - Treat `dev` as the integration branch for testing, debugging, and validating `gpu-mon` behavior in homelab and production-like execution paths.
 - Treat `main` as the promotion target after changes have already been validated through `dev`.
 - When reviewing, evaluate whether a change is safe for `dev` deployment and whether it preserves a clean eventual merge path from `dev` to `main`.
@@ -42,4 +43,4 @@ Use this file when reviewing or changing code in this repo with Codex.
 
 ## Expected Review Output
 
-When asked to review a PR in this repo, lead with findings in severity order and include file references. Keep the summary short. If there are no findings, state that clearly and list residual risks such as unrun tests or unverified deployment paths.
+When asked to review a PR in this repo, lead with findings in severity order and include file references. Keep the summary short. For each finding, include the validation evidence (exact command used) or explicitly state why it was not validated in the current environment. If there are no findings, state that clearly and list residual risks such as unrun tests or unverified deployment paths.

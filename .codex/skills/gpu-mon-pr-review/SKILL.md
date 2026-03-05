@@ -14,6 +14,7 @@ Find defects and deployment risks before style issues. The primary output is a f
 ## Branch Policy
 
 - Use `dev` as the default review base branch.
+- Allow exceptions only when the request explicitly targets `hotfix/*`, `release/*`, or another named base branch.
 - Assume PRs merge into `dev` first.
 - Treat `dev` as the branch used to test, debug, and validate execution on homelab and production-oriented environments before promotion to `main`.
 - Include `main` mergeability as a secondary check when a change introduces temporary debug logic, environment-specific behavior, or validation-only code.
@@ -59,6 +60,7 @@ Return findings first, ordered by severity, each with:
 - short title
 - why it matters
 - file reference
+- exact validation command/output summary, or a clear reason it was not validated
 - missing test or validation angle if applicable
 
 After findings, include:
