@@ -41,6 +41,14 @@ Use this file when reviewing or changing code in this repo with Codex.
 - New paths follow the existing repository layout instead of introducing parallel conventions.
 - PR diffs and review comments assume `dev` as the base branch and consider downstream mergeability into `main`.
 
+## Conditional Test Gate
+
+- Treat test execution as conditionally required, not optional, when runtime behavior can change.
+- Run and report relevant checks for changes in `src/`, `helmfile.yaml`, `charts/`, `environments/`, `ansible/`, `scripts/`, `compose/`, and `schemas/`.
+- For docs-only, comments-only, or metadata-only changes with no runtime impact, tests may be skipped with an explicit rationale.
+- If a required check fails, raise a finding with severity based on impact and include the failing command/output summary.
+- If a required check cannot run in the current environment, mark it as unverified, include the blocking reason, and describe deployment risk.
+
 ## Expected Review Output
 
 When asked to review a PR in this repo, lead with findings in severity order and include file references. Keep the summary short. For each finding, include the validation evidence (exact command used) or explicitly state why it was not validated in the current environment. If there are no findings, state that clearly and list residual risks such as unrun tests or unverified deployment paths.

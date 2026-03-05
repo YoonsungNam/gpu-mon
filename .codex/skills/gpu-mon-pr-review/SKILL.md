@@ -53,6 +53,14 @@ Find defects and deployment risks before style issues. The primary output is a f
 - Schema changes without downstream query or dashboard impact analysis
 - Docs that no longer match actual commands or file locations
 
+## Conditional Test Gate
+
+- Require test/check execution when touched files can affect runtime behavior:
+  - `src/`, `helmfile.yaml`, `charts/`, `environments/`, `ansible/`, `scripts/`, `compose/`, `schemas/`
+- Allow skipping checks only for docs-only, comments-only, or metadata-only changes with explicit rationale.
+- If a required check fails, record it as a finding with severity aligned to deployment impact.
+- If a required check cannot run, keep it explicit as unverified and include blocker plus expected risk.
+
 ## Output Format
 
 Return findings first, ordered by severity, each with:
