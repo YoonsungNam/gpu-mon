@@ -38,8 +38,11 @@ Phase 1: Foundation (L1+L2 metric pipeline)
 - D1: vmagent over Prometheus (VM ecosystem, lightweight)
 - D2: Vector over Fluent Bit (native ClickHouse sink, VRL transforms)
 - D15: DCGM Profiling ↔ CUPTI conflict managed via L2 pause/resume protocol
-- D18: Hybrid Pull (metrics) + Push (logs) — see docs/planning-v5.md in corp repo
+- D18: Hybrid Pull (metrics) + Push (logs) — see docs/planning-v5.md
 - D19: File-based Service Discovery (Ansible-managed JSON)
+
+## Key Reference Documents (read before major changes)
+- `docs/planning-v5.md` — Full system architecture design document (v5)
 
 ## Branch Strategy
 - `dev` is the integration branch — all feature branches branch from and merge into `dev`
