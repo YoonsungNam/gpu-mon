@@ -39,6 +39,7 @@ Find defects and deployment risks before style issues. The primary output is a f
 ## Repository Heuristics
 
 - This is a public base repo. Company-only values, credentials, cluster names, inventory details, registries, and internal docs must stay out.
+- Apply repository policy checks against the current baseline. Flag newly introduced violations, not unchanged baseline exceptions, unless the PR is explicitly cleaning them up.
 - Shared behavior belongs in base environments and reusable charts, not in one-off overlays.
 - Pull metrics, push logs, and storage schemas form cross-component contracts. Review changes to names, labels, ports, and table fields as compatibility risks.
 - Deployment changes should be evaluated for both local iteration (`compose/`) and cluster deployment (`helmfile.yaml`, `ansible/`) when relevant.
