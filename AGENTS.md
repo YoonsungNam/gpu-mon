@@ -31,7 +31,7 @@ Use this file when reviewing or changing code in this repo with Codex.
 
 - `README.md` and `deployment-workflow.md` remain consistent with the current architecture.
 - Public repo constraints from `CLAUDE.md` are preserved:
-  - English-only repository content
+  - New or modified repository content remains English-only, unless a tracked baseline exception is being intentionally removed
   - No copied OSS charts
   - No production or corporate-only configuration
 - Helm and Helmfile changes maintain valid value flow across `helmfile.yaml`, `environments/`, and `charts/`.
