@@ -1,0 +1,43 @@
+name: Lint
+
+on:
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  helm-lint:
+    name: Helm chart lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - name: Lint charts
+        run: |
+          for chart in charts/*/; do
+            if [[ -f "${chart}/Chart.yaml" ]]; then
+              echo "Linting ${chart}..."
+              helm lint "${chart}"
+            fi
+          done
+
+  python-lint:
+    name: Python source lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint
+        run: ruff check src/
