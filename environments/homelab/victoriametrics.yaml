@@ -1,0 +1,26 @@
+# VictoriaMetrics Helm values — homelab overrides
+
+vminsert:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+vmselect:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+vmstorage:
+  replicaCount: 1
+  persistentVolume:
+    enabled: true
+    size: 20Gi
+  retentionPeriod: "30d"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi

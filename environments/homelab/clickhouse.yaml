@@ -1,0 +1,19 @@
+# ClickHouse cluster values — homelab overrides
+
+clickhouse:
+  cluster:
+    name: gpu-monitoring
+    layout:
+      shardsCount: 1
+      replicasCount: 1
+  storage:
+    size: 20Gi
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+
+# Schema initialization runs as an init job
+schema_init:
+  enabled: true
+  schemas_path: /schemas

@@ -1,0 +1,20 @@
+# homelab environment — K8s (e.g., k3s on dedicated nodes)
+# Deploy with: make homelab-sync
+#
+# Uses mock DCGM exporter to simulate GPU metrics.
+# No metadata collector (no S2 / VMware in homelab).
+
+image_registry: ghcr.io/yoonsungnam/gpu-mon
+image_tag: latest
+
+mock_dcgm:
+  enabled: true
+  node_count: 2
+  gpus_per_node: 2
+  gpu_model: A100
+
+metadata_collector:
+  enabled: false
+
+# Ingress / access
+grafana_host: grafana.homelab.local
