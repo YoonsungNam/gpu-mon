@@ -1,0 +1,125 @@
+---
+# gpu-mon macbook development stack (Docker Compose)
+# No K8s required. Uses mock DCGM exporter for synthetic GPU metrics.
+#
+# Usage:
+#   make dev-up      # start
+#   make dev-down    # stop
+#   make dev-logs    # tail logs
+
+name: gpu-mon
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ── Mock DCGM Exporter ─────────────────────────────────────────────────────
+  mock-dcgm-exporter:
+    build:
+      context: ../src/mock-dcgm-exporter
+    environment:
+      NODE_COUNT: "4"
+      GPUS_PER_NODE: "2"
+      GPU_MODEL: "A100"
+      SCRAPE_INTERVAL: "15"
+    ports:
+      - "9400:9400"
+    logging: *default-logging
+
+  # ── Central vmagent ────────────────────────────────────────────────────────
+  vmagent:
+    image: victoriametrics/vmagent:v1.106.1
+    command:
+      - "-promscrape.config=/etc/vmagent/config.yaml"
+      - "-remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
+      - "-httpListenAddr=:8429"
+    volumes:
+      - ./vmagent-config.yaml:/etc/vmagent/config.yaml:ro
+    ports:
+      - "8429:8429"
+    depends_on:
+      - mock-dcgm-exporter
+      - vminsert
+    logging: *default-logging
+
+  # ── VictoriaMetrics Cluster ────────────────────────────────────────────────
+  vmstorage:
+    image: victoriametrics/vmstorage:v1.106.1
+    command:
+      - "-storageDataPath=/vmstorage-data"
+      - "-retentionPeriod=7d"
+    volumes:
+      - vmstorage-data:/vmstorage-data
+    logging: *default-logging
+
+  vminsert:
+    image: victoriametrics/vminsert:v1.106.1
+    command:
+      - "-storageNode=vmstorage:8400"
+    ports:
+      - "8480:8480"
+    depends_on:
+      - vmstorage
+    logging: *default-logging
+
+  vmselect:
+    image: victoriametrics/vmselect:v1.106.1
+    command:
+      - "-storageNode=vmstorage:8401"
+    ports:
+      - "8481:8481"
+    depends_on:
+      - vmstorage
+    logging: *default-logging
+
+  # ── ClickHouse ─────────────────────────────────────────────────────────────
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    ports:
+      - "8123:8123"   # HTTP
+      - "9000:9000"   # Native
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ../schemas:/docker-entrypoint-initdb.d:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    logging: *default-logging
+
+  # ── Vector Aggregator ──────────────────────────────────────────────────────
+  vector:
+    image: timberio/vector:0.42.0-alpine
+    command: ["--config", "/etc/vector/vector.toml"]
+    volumes:
+      - ./vector-aggregator.toml:/etc/vector/vector.toml:ro
+    ports:
+      - "6000:6000"
+    depends_on:
+      - clickhouse
+    logging: *default-logging
+
+  # ── Grafana ────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-provisioning:/etc/grafana/provisioning:ro
+      - ../dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - vmselect
+      - clickhouse
+    logging: *default-logging
+
+volumes:
+  vmstorage-data:
+  clickhouse-data:
+  grafana-data:

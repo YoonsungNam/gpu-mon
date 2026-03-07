@@ -1,0 +1,23 @@
+# macbook environment — Docker Compose only, no K8s
+# Run with: make dev-up
+#
+# Uses mock DCGM exporter to simulate GPU metrics.
+
+image_registry: ghcr.io/yoonsungnam/gpu-mon
+image_tag: dev
+
+mock_dcgm:
+  enabled: true
+  node_count: 4      # Simulated GPU nodes
+  gpus_per_node: 2   # GPUs per simulated node
+  gpu_model: A100
+
+# Local ports exposed on host
+ports:
+  grafana: 3000
+  vminsert: 8480
+  vmselect: 8481
+  vmstorage: 8482
+  vmagent_ui: 8429
+  clickhouse_http: 8123
+  vector: 6000
