@@ -2,13 +2,13 @@
 
 > **Goal**: Build a unified monitoring system on K8s for multi GPU Cluster and GPU VM environments
 > **Confirmed DBs**: ClickHouse (logs/analytics/profiling/metadata), VictoriaMetrics (time-series metrics)
-> **Existing Environment**: Baremetal - Zabbix + DCGM, VMware vSphere GPU VM, Samsung Batch Scheduler (S2)
+> **Existing Environment**: Baremetal - Zabbix + DCGM, VMware vSphere GPU VM, Internal Batch Scheduler (IBS)
 > **Core Principles**:
 > - Standardize with the same Exporter + same schema across all environments (Baremetal, K8s, VM)
 > - **Metric collection is Pull-based** (Central vmagent scrapes each node's Exporter)
 > - **Log collection is lightweight Push** (Node Vector Agent → Central Vector Aggregator)
 > - Systematize GPU/AI metrics into 3 depth levels (L1~L3), with L3 as modular on-demand
-> - Collect legacy system metadata (VMware VM, S2 Job/Node/Project/Pool) and combine (Enrich) with GPU metrics
+> - Collect legacy system metadata (VMware VM, IBS Job/Node/Project/Pool) and combine (Enrich) with GPU metrics
 
 ### v5 Change History (compared to v4)
 
@@ -18,9 +18,9 @@
 | **[Core] Changed log collection to lightweight Push** — Node Vector Agent (lightweight) → Central Vector Aggregator (K8s) handles parsing/transformation | 2, 5, 6, 7, 9, 13 |
 | **Reduced per-node agents from 4 → 2~3** (removed vmagent, lightweight Vector) | 2, 9 |
 | **File-based Service Discovery** — Manage scrape targets via Ansible-managed target files | 2 |
-| Complete revision of architecture diagram — S2/VMware integrated into Data Sources, Path A (Pull) / B (Push) notation | 5 |
+| Complete revision of architecture diagram — IBS/VMware integrated into Data Sources, Path A (Pull) / B (Push) notation | 5 |
 | Added DCGM Profiling ↔ CUPTI conflict management strategy | 3 |
-| S2 metadata storage strategy classified into 3 types (time-series/current value/snapshot), added s2_projects/s2_pools tables | 4, 8 |
+| IBS metadata storage strategy classified into 3 types (time-series/current value/snapshot), added ibs_projects/ibs_pools tables | 4, 8 |
 | Added Per-Job GPU Utilization measurement strategy, introduced DCGM Job Stats (L2.5) | 3, 4 |
 | Deprioritized Module C (CUPTI Wrapper) | 3, 6 |
 | Added design decisions D15~D18 | 12 |
@@ -32,12 +32,12 @@
 
 | Change | Affected Sections |
 |---|---|
-| [New] Section 4: Legacy System Metadata Integration — VMware vCenter GPU VM Inventory, Samsung Batch Scheduler (S2) Job/Node metadata collection system | 4 (new) |
+| [New] Section 4: Legacy System Metadata Integration — VMware vCenter GPU VM Inventory, Internal Batch Scheduler (IBS) Job/Node metadata collection system | 4 (new) |
 | Added Metadata type to data classification | 1 |
 | Added Metadata Collector to agent matrix | 2 |
 | Added Enrichment labels to standard labels | 2 |
 | Added Legacy Metadata Sources + Metadata Collector to architecture | 5 |
-| Added ClickHouse tables (`s2_jobs`, `s2_nodes`, `vmware_vm_inventory`) | 8 |
+| Added ClickHouse tables (`ibs_jobs`, `ibs_nodes`, `vmware_vm_inventory`) | 8 |
 | Merged metadata integration into roadmap Phase 3 | 10 |
 | Added Job Explorer, VM Inventory to dashboards | 11 |
 | Added design decisions D12~D14 | 12 |
@@ -56,7 +56,7 @@ We classify monitoring target data into **5 types** and map each to the optimal 
 | **Logs (structured/unstructured)** | Job execution logs, system logs, OOM/Xid error logs, NCCL communication logs | **ClickHouse** | Columnar DB enables fast analytical queries on large volumes of logs |
 | **JSON/Analytical Data** | GPU demand data, cluster inventory, SLA reports | **ClickHouse** | JSON column type support, optimal for complex analytical queries |
 | **Profiling Traces** | Kernel execution time, memory access patterns, NCCL operations, operator analysis | **ClickHouse** | Optimal for large-scale event analysis and per-session aggregation |
-| **Legacy Metadata** *(v4 new)* | VMware VM Inventory, S2 Job metadata, S2 Node status | **ClickHouse** | Optimal for snapshot-based history management and JOIN analysis with GPU metrics |
+| **Legacy Metadata** *(v4 new)* | VMware VM Inventory, IBS Job metadata, IBS Node status | **ClickHouse** | Optimal for snapshot-based history management and JOIN analysis with GPU metrics |
 
 ### Why Split It This Way?
 
@@ -72,16 +72,16 @@ Current limitations of GPU monitoring:
 ```
 What DCGM shows:               What we actually want to know:
 ─────────────────              ─────────────────
-GPU 0: Util 85%                 "Researcher Kim's LLaMA training Job is
+GPU 0: Util 85%                 "User A's LLaMA training Job is
 GPU 0: Temp 72°C                 running on GPU 0~3 of gpu-node-03
-GPU 0: Tensor Active 0.62        in S2 queue 'high-priority'.
-                                  Current S2 Job ID: 84723"
+GPU 0: Tensor Active 0.62        in IBS queue 'high-priority'.
+                                  Current IBS Job ID: 84723"
 
 What GPU VM shows:              What we actually want to know:
 ─────────────────              ─────────────────
 VM-01: GPU Util 45%              "vm-gpu-research-07 (GPU Passthrough A100) is
 VM-01: Memory 32GB/40GB           running on ESXi host esxi-gpu-02.internal.
-                                   vCenter Resource Pool: AI-Research-Team"
+                                   vCenter Resource Pool: pool-a"
 ```
 
 **By collecting metadata**, GPU metrics gain context, significantly improving the quality of operations and analysis.
@@ -134,7 +134,7 @@ v5 Core Change: Push → Pull (Hybrid)
 |---|---|---|---|
 | **vmagent (Central)** | Pull scrape all node Exporters → VictoriaMetrics | K8s Deployment (HA) | **v5 new** |
 | **Vector Aggregator** | Receive logs from node Vector Agents → parse/transform → ClickHouse | K8s Deployment | **v5 new** |
-| **Metadata Collector** | Poll S2 + VMware APIs → ClickHouse | K8s Deployment | Same as v4 |
+| **Metadata Collector** | Poll IBS + VMware APIs → ClickHouse | K8s Deployment | Same as v4 |
 
 Additional agents (per environment/role):
 
@@ -202,7 +202,7 @@ GPU metrics themselves do not contain Job information. Instead, context is provi
 ```
 Method 1: Real-time JOIN in Grafana (recommended)
    VictoriaMetrics: GPU Util by (node, gpu)
-   + ClickHouse: s2_jobs WHERE node_id = $node AND gpu_indices HAS $gpu AND status = 'running'
+   + ClickHouse: ibs_jobs WHERE node_id = $node AND gpu_indices HAS $gpu AND status = 'running'
    → Display "which Job is running on this GPU" in the dashboard
 
 Method 2: Label injection via central vmagent relabel (optional, complex)
@@ -619,16 +619,16 @@ DCGM Job Stats approach:
 | Strategy | L2 Interruption | Kernel Analysis | Implementation Complexity | Recommended Timing |
 |---|---|---|---|---|
 | **A: L2 pause + L3** | ⏸ Short gap | ✅ Possible | Medium | Phase 5 (when building L3 system) |
-| **B: DCGM Job Stats** | None | ❌ Not possible | Low | Phase 3 (alongside S2 integration) |
+| **B: DCGM Job Stats** | None | ❌ Not possible | Low | Phase 3 (alongside IBS integration) |
 | **C: L3 dedicated nodes** | None | ✅ Possible | Low | When spare GPU nodes are available |
 
 **Recommended combination:**
 
 ```
 Phase 3 (immediate):
-  • Collect per-S2-Job GPU efficiency summaries with DCGM Job Stats
+  • Collect per-IBS-Job GPU efficiency summaries with DCGM Job Stats
   • Obtain Job-level statistics without conflicting with L2 Profiling
-  • Integrate with S2 Job lifecycle hooks for DCGM stats start/stop
+  • Integrate with IBS Job lifecycle hooks for DCGM stats start/stop
 
 Phase 5 (L3 system build):
   • Implement L2 pause protocol
@@ -672,7 +672,7 @@ Triggers: Manual REST API, vmalert auto-trigger, CronJob schedule
 | **L2 KV Cache** | Utilization, Hit Rate, Eviction | - | ✅ | Inference server /metrics | VictoriaMetrics | Always-on |
 | **L2 Batching** | Batch Size, Queue Length | - | ✅ | Inference server /metrics | VictoriaMetrics | Always-on |
 | **L2 NCCL Communication** | AllReduce/AllGather time | ✅ | - | NCCL logs → Vector | ClickHouse | Always-on (logs) |
-| **L2.5 Job Statistics** | Per-Job GPU Util/Mem aggregation | ✅ | ✅ | **DCGM Job Stats** | ClickHouse | **S2 integration (no conflict)** |
+| **L2.5 Job Statistics** | Per-Job GPU Util/Mem aggregation | ✅ | ✅ | **DCGM Job Stats** | ClickHouse | **IBS integration (no conflict)** |
 | **L3 Kernel Analysis** | Kernel time, Memory patterns | ✅ | ✅ | Module A/B | ClickHouse | **On-demand (L2 paused)** |
 
 ---
@@ -694,8 +694,8 @@ Current: Only GPU metrics collected (DCGM)
 
 v4: GPU metrics + legacy metadata combination
 ───────────────────────────────────────
-  GPU Util 92% + S2 Job #84723
-    → User: Researcher Kim (AI Research Team)
+  GPU Util 92% + IBS Job #84723
+    → User: User A (Team A)
     → Job: llama-70b-finetune
     → Queue: high-priority
     → GPU allocation: gpu-node-03 GPU 0~3
@@ -706,15 +706,15 @@ v4: GPU metrics + legacy metadata combination
     → VM: vm-gpu-research-07
     → ESXi Host: esxi-gpu-02.internal
     → GPU: A100 (Passthrough)
-    → Resource Pool: AI-Research-Team
-    → Owner: Researcher Lee
+    → Resource Pool: pool-a
+    → Contact: User B
 ```
 
 ### 4.2 Target Legacy Systems
 
-#### 4.2.1 Samsung Batch Scheduler (S2)
+#### 4.2.1 Internal Batch Scheduler (IBS)
 
-S2 is Samsung's internal GPU cluster Batch Job scheduler. It performs a role similar to Slurm, managing Job submission/scheduling/execution/completion.
+IBS stands for Internal Batch Scheduler. It performs a role similar to Slurm, managing Job submission, scheduling, execution, and completion.
 
 **Metadata to collect (4 data types, 3 storage strategies):**
 
@@ -725,29 +725,29 @@ S2 is Samsung's internal GPU cluster Batch Job scheduler. It performs a role sim
 | **Project information** | FairShare weight, resource Limit, License, allowed queues/Pools | **Snapshot** (ReplacingMT, JSON) | FairShare vs. actual usage rate, resource limit management |
 | **Pool information** | Logical Node Pool configuration, member node list, GPU configuration, scheduling policy | **Snapshot** (ReplacingMT, JSON) | Per-Pool GPU status, Node↔Pool mapping |
 
-**S2 Data Access Methods (priority order):**
+**IBS Data Access Methods (priority order):**
 
 ```
-Method 1: S2 REST API Polling (recommended)
-  If S2 provides a REST API, Metadata Collector periodically calls the API.
+Method 1: IBS REST API Polling (recommended)
+  If IBS provides a REST API, Metadata Collector periodically calls the API.
 
-  Expected endpoints (adjust according to S2 API spec):
+  Expected endpoints (adjust according to IBS API spec):
     GET /api/v1/jobs?status=running,pending,completed
     GET /api/v1/nodes
     GET /api/v1/projects
     GET /api/v1/pools
 
-Method 2: S2 CLI Parsing
-  Parse the output of S2 CLI (s2jobs, s2nodes, etc.) into structured data.
+Method 2: IBS CLI Parsing
+  Parse the output of IBS CLI (ibsjobs, ibsnodes, etc.) into structured data.
   Metadata Collector runs CLI via SSH or locally.
 
-  Example: s2jobs --format=json --state=running
-      s2nodes --format=json
-      s2projects --format=json
-      s2pools --format=json
+  Example: ibsjobs --format=json --state=running
+      ibsnodes --format=json
+      ibsprojects --format=json
+      ibspools --format=json
 
-Method 3: S2 DB Direct Query (fallback)
-  Read-only access to S2's internal DB for querying.
+Method 3: IBS DB Direct Query (fallback)
+  Read-only access to the IBS backend DB for querying.
   High dependency on DB schema, maintenance burden.
 ```
 
@@ -759,7 +759,7 @@ In VMware vSphere environments, GPUs are assigned to VMs via GPU Passthrough or 
 
 | Data | Description | Usage |
 |---|---|---|
-| **VM Inventory** | VM name, UUID, status, creation date, owner (annotation) | GPU VM status overview, inventory management |
+| **VM Inventory** | VM name, UUID, status, creation date, contact (annotation) | GPU VM status overview, inventory management |
 | **VM↔Host Mapping** | Which ESXi host the VM is running on | Identify affected VMs during host failures |
 | **GPU Allocation** | GPU type assigned to VM (Passthrough/vGPU), profile | Per-VM GPU resource tracking |
 | **Resource Pool** | Resource Pool / Cluster the VM belongs to | GPU usage aggregation by team/project |
@@ -786,7 +786,7 @@ Method: vCenter REST API (pyVmomi or govmomi)
 
 | Source | Data | Notes |
 |---|---|---|
-| **LDAP/AD** | User→Department/Team mapping | Extend S2 user IDs to organizational information |
+| **LDAP/AD** | User→Department/Team mapping | Extend IBS user IDs to organizational information |
 | **CMDB** | Asset information (serial, rack, IDC location) | Integrate with data managed in Zabbix |
 | **K8s API** | Namespace, Pod, ResourceQuota | Already collected by kube-state-metrics |
 
@@ -803,17 +803,17 @@ Metadata Collector is a **single component** that periodically polls legacy syst
 │                                                                  │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │                      Scheduler                             │  │
-│  │  S2 Jobs:       every 60s (running/pending) — time-series  │  │
-│  │  S2 Jobs:       every 300s (recently_completed) — time-series│ │
-│  │  S2 Nodes:      every 120s — current value (ReplacingMT)   │  │
-│  │  S2 Projects:   every 600s — snapshot (rarely changes)      │  │
-│  │  S2 Pools:      every 600s — snapshot (rarely changes)      │  │
+│  │  IBS Jobs:       every 60s (running/pending) — time-series  │  │
+│  │  IBS Jobs:       every 300s (recently_completed) — time-series│ │
+│  │  IBS Nodes:      every 120s — current value (ReplacingMT)   │  │
+│  │  IBS Projects:   every 600s — snapshot (rarely changes)      │  │
+│  │  IBS Pools:      every 600s — snapshot (rarely changes)      │  │
 │  │  VMware VMs:    every 300s — current value (ReplacingMT)    │  │
 │  └────────┬──────────┬──────────┬──────────┬─────────────────┘  │
 │           │          │          │          │                      │
 │           ▼          ▼          ▼          ▼                      │
 │  ┌─────────────┐ ┌────────┐ ┌────────────┐ ┌────────────────┐  │
-│  │ S2 Adapter  │ │S2 Adap.│ │ S2 Adapter │ │ VMware Adapter │  │
+│  │ IBS Adapter  │ │IBS Adap.│ │ IBS Adapter │ │ VMware Adapter │  │
 │  │ (Jobs)      │ │(Nodes) │ │ (Projects  │ │ (VMs)          │  │
 │  │             │ │        │ │  + Pools)   │ │                │  │
 │  │ REST/CLI    │ │REST/CLI│ │ REST/CLI    │ │ pyVmomi        │  │
@@ -857,19 +857,19 @@ clickhouse:
   batch_size: 500
   flush_interval: 10s
 
-# S2 scheduler connection
+# IBS scheduler connection
 sources:
-  s2:
+  ibs:
     enabled: true
     # Method 1: REST API
     api_url: "http://s2-master.internal:8080/api/v1"
-    auth_token_secret: s2-api-token
+    auth_token_secret: ibs-api-token
     # Method 2: CLI (when API is unavailable)
     # cli_mode: true
-    # cli_path: /usr/local/bin/s2jobs
+    # cli_path: /usr/local/bin/ibsjobs
     # ssh_host: s2-master.internal
     # ssh_user: monitor
-    # ssh_key_secret: s2-ssh-key
+    # ssh_key_secret: ibs-ssh-key
 
     schedules:
       jobs_running:
@@ -909,10 +909,10 @@ sources:
 |---|---|---|
 | **Language** | Python (FastAPI) or Go | Python: easy to use pyVmomi (VMware SDK), rapid prototyping. Go: long-term performance |
 | **VMware SDK** | pyVmomi | Official VMware Python SDK. Supports vCenter 6.5+ |
-| **S2 integration** | HTTP client / subprocess | API method or CLI output parsing |
+| **IBS integration** | HTTP client / subprocess | API method or CLI output parsing |
 | **ClickHouse client** | clickhouse-driver (Python) / clickhouse-go | Supports Batch INSERT |
 | **Scheduling** | APScheduler (Python) or built-in ticker (Go) | Independent per-source interval management |
-| **Container image** | Alpine/Distroless based | Lightweight image, push to internal registry |
+| **Container image** | Alpine/Distroless based | Lightweight image, push to a container registry |
 
 #### 4.3.4 Adapter Pattern (Extensibility)
 
@@ -936,8 +936,8 @@ class MetadataAdapter(ABC):
         """Return ClickHouse target table name"""
         pass
 
-class S2JobsAdapter(MetadataAdapter):
-    """S2 scheduler Job metadata collection"""
+class IBSJobsAdapter(MetadataAdapter):
+    """IBS scheduler Job metadata collection"""
 
     def fetch(self) -> List[Dict]:
         # REST API call or CLI execution
@@ -1016,7 +1016,7 @@ Method 1: Grafana Query-Time JOIN (Recommended, Phase 3)
 
   Panel B (ClickHouse):
     SELECT job_id, job_name, user_id, team
-    FROM s2_jobs
+    FROM ibs_jobs
     WHERE has(node_list, 'gpu-node-03')
       AND has(gpu_indices, 0)
       AND status = 'running'
@@ -1029,7 +1029,7 @@ Method 2: Merge via Grafana Transformations
   Display two queries merged as a table within the same panel:
 
   Query A: VictoriaMetrics → GPU Util by (node, gpu)
-  Query B: ClickHouse → s2_jobs (running) by (node_list, gpu_indices)
+  Query B: ClickHouse → ibs_jobs (running) by (node_list, gpu_indices)
   Transform: Merge → Join based on node
 
   Result: | node | gpu | GPU Util | Job ID | User | Team | table
@@ -1053,9 +1053,9 @@ Method 3: Metric Enrichment via vmagent (Phase 6 Advanced)
 ```sql
 -- ClickHouse: Currently running Jobs and GPU allocation info
 SELECT j.job_id, j.job_name, j.user_id, j.team, j.node_list, j.gpu_count
-FROM s2_jobs j
+FROM ibs_jobs j
 WHERE j.status = 'running'
-  AND j.collected_at = (SELECT max(collected_at) FROM s2_jobs WHERE job_id = j.job_id)
+  AND j.collected_at = (SELECT max(collected_at) FROM ibs_jobs WHERE job_id = j.job_id)
 ```
 
 ```promql
@@ -1071,9 +1071,9 @@ avg_over_time(DCGM_FI_DEV_GPU_UTIL{node=~"$node"}[5m])
 -- ClickHouse: All running Jobs for a specific team
 SELECT j.job_id, j.node_list, j.gpu_count,
        j.gpu_indices, j.submit_time, j.start_time
-FROM s2_jobs j
+FROM ibs_jobs j
 WHERE j.team = 'ai-research' AND j.status = 'running'
-  AND j.collected_at = (SELECT max(collected_at) FROM s2_jobs WHERE job_id = j.job_id)
+  AND j.collected_at = (SELECT max(collected_at) FROM ibs_jobs WHERE job_id = j.job_id)
 ```
 
 → Generate reports on GPU occupancy rate, wait time, and efficiency per team
@@ -1107,17 +1107,17 @@ WHERE esxi_host = 'esxi-gpu-02.internal'
 ### 4.5 Data Retention and History Management (v4.1 Revised)
 
 ```
-S2 Job Data [Time-series, MergeTree]:
+IBS Job Data [Time-series, MergeTree]:
   ├── Running/Pending Job: Every 60 seconds → Full time-series history retained
   ├── Completed Job: Additional record after completion
   └── Retention: 6 months (TTL) — Used for Job wait time, GPU-Hours analysis
 
-S2 Node Data [Current value, ReplacingMergeTree]:
+IBS Node Data [Current value, ReplacingMergeTree]:
   ├── Polled every 120 seconds → Only the latest 1 record per node retained
-  ├── If history is needed, track indirectly via s2_jobs or record events in gpu_events
+  ├── If history is needed, track indirectly via ibs_jobs or record events in gpu_events
   └── No TTL (row count remains stable due to automatic dedup)
 
-S2 Project/Pool Data [Snapshot, ReplacingMergeTree]:
+IBS Project/Pool Data [Snapshot, ReplacingMergeTree]:
   ├── Polled every 600 seconds → Effectively updated only on changes
   ├── JSON field-centric (FairShare, Limit, License, Node configuration, etc.)
   └── No TTL (change history automatically maintains only the latest)
@@ -1127,8 +1127,8 @@ VMware VM Inventory [Current value, ReplacingMergeTree]:
   └── Retention: 12 months (TTL)
 
 History analysis examples:
-  "Change in GPU usage patterns of AI Research team over the last 3 months" → s2_jobs time-series
-  "How long was the wait time for a specific Job" → s2_jobs pending→running transition
+  "Change in GPU usage patterns of Team A over the last 3 months" → ibs_jobs time-series
+  "How long was the wait time for a specific Job" → ibs_jobs pending→running transition
   "History of a VM being migrated to a different ESXi host" → vmware_vm_inventory
 ```
 
@@ -1152,7 +1152,7 @@ CPU World:                                GPU World:
 
 Key Insight:
   In HPC/AI environments, exclusive GPU allocation to Jobs is standard
-  → If S2 tells us "Job #84723 → GPU [0,1,2,3] on gpu-node-03"
+  → If IBS tells us "Job #84723 → GPU [0,1,2,3] on gpu-node-03"
   → DCGM metrics for gpu-node-03 GPU 0~3 are exactly Job #84723's metrics
   → No profiler attach needed!
 ```
@@ -1163,11 +1163,11 @@ Key Insight:
 
 ```
 This is the method adopted by most GPU cluster environments.
-Since S2 assigns GPUs exclusively to each Job, per-GPU metrics = per-Job metrics.
+Since IBS assigns GPUs exclusively to each Job, per-GPU metrics = per-Job metrics.
 
 Measurement Flow:
   ┌───────────────┐     ┌──────────────────────┐     ┌─────────────┐
-  │ S2 Metadata   │     │ DCGM Exporter        │     │ Grafana     │
+  │ IBS Metadata   │     │ DCGM Exporter        │     │ Grafana     │
   │               │     │                      │     │             │
   │ Job #84723    │     │ gpu-node-03:         │     │ JOIN:       │
   │  node: gpu-03 │ ──→ │  GPU 0: Util 92%    │ ──→ │ Job #84723  │
@@ -1206,23 +1206,23 @@ Method A: NVML Accounting Mode (Recommended, ~0% overhead)
     gpu_process_util{pid="12345", gpu="0", node="gpu-03"} = 45.2
     gpu_process_memory{pid="12345", gpu="0", node="gpu-03"} = 8192
 
-  Map with S2 Job PID info:
-    If s2_jobs.metadata JSON contains {"pid": 12345}
-    → JOIN gpu_process_util and s2_jobs by PID
+  Map with IBS Job PID info:
+    If ibs_jobs.metadata JSON contains {"pid": 12345}
+    → JOIN gpu_process_util and ibs_jobs by PID
 
 Method B: DCGM Job Stats API (Scheduler Integration)
   ────────────────────────────────────────
   This is a built-in Job-level statistics feature in DCGM.
-  When S2 notifies DCGM at Job start/end, DCGM aggregates
+  When IBS notifies DCGM at Job start/end, DCGM aggregates
   GPU usage statistics for that period.
 
   Integration flow:
-    Job start → S2 Hook → dcgmi stats -s <group_id>  (Start stats collection)
-    Job end   → S2 Hook → dcgmi stats -x <group_id>  (Stop stats collection)
+    Job start → IBS Hook → dcgmi stats -s <group_id>  (Start stats collection)
+    Job end   → IBS Hook → dcgmi stats -x <group_id>  (Stop stats collection)
     → Result: GPU Util, Memory, ECC errors, SM Occupancy, etc. for the Job period
 
   Advantages: Provides comprehensive stats including SM Clock, Memory, not just GPU Util
-  Disadvantages: Requires S2 Job lifecycle hooks (coordination with S2 ops team needed)
+  Disadvantages: Requires IBS Job lifecycle hooks (coordination with scheduler operators needed)
 
 Method C: NVIDIA MIG (A100/H100 Only)
   ────────────────────────────────────
@@ -1237,7 +1237,7 @@ Method C: NVIDIA MIG (A100/H100 Only)
 ```
 Phase 3 (Immediate Implementation): Indirect Combination Method
 ─────────────────────────────────────
-  • JOIN S2 Job metadata (node_list, gpu_indices) with
+  • JOIN IBS Job metadata (node_list, gpu_indices) with
     DCGM per-GPU metrics in Grafana
   • This alone enables per-Job GPU Util verification in exclusive GPU allocation environments
   • No additional agent installation required
@@ -1249,10 +1249,10 @@ Phase 6 (Advanced, As Needed):
     • Develop custom Prometheus Exporter (Python/Go)
     • Per-PID GPU Utilization → Expose as Prometheus metrics
     • vmagent scrapes → VictoriaMetrics → Grafana
-    • Map with S2 Job PID
+    • Map with IBS Job PID
 
-  Option B: DCGM Job Stats Integration (Requires S2 Hook)
-    • Signal DCGM to start/stop stats collection at S2 Job start/end
+  Option B: DCGM Job Stats Integration (Requires IBS Hook)
+    • Signal DCGM to start/stop stats collection at IBS Job start/end
     • Load aggregated results to ClickHouse upon completion
     • For post-hoc analysis (reporting purposes rather than real-time monitoring)
 ```
@@ -1261,16 +1261,16 @@ Phase 6 (Advanced, As Needed):
 
 ```
 ┌──────────────────┐        ┌───────────────────┐        ┌─────────────┐
-│   S2 Scheduler   │        │  GPU Node          │        │   Grafana   │
+│   IBS Scheduler   │        │  GPU Node          │        │   Grafana   │
 │                  │        │                    │        │             │
 │ Job #84723       │        │ DCGM Exporter      │        │ Query A:    │
 │  node: gpu-03    │  ──→   │  GPU 0: Util 92%   │  ──→   │ ClickHouse  │
-│  gpus: [0,1,2,3] │ (S2    │  GPU 1: Util 88%   │ (DCGM  │ → Job info  │
+│  gpus: [0,1,2,3] │ (IBS    │  GPU 1: Util 88%   │ (DCGM  │ → Job info  │
 │  user: Kim OO    │  meta)  │  GPU 2: Util 91%   │  →VM)  │             │
 │  team: AI Research│        │  GPU 3: Util 90%   │        │ Query B:    │
 │                  │        │                    │        │ VictoriaM.  │
 │ → ClickHouse     │        │ → VictoriaMetrics  │        │ → GPU Util  │
-│   (s2_jobs)      │        │                    │        │             │
+│   (ibs_jobs)      │        │                    │        │             │
 └──────────────────┘        └───────────────────┘        │ Transform:  │
                                                           │ Merge on    │
                                                           │ node + gpu  │
@@ -1293,7 +1293,7 @@ Phase 6 (Advanced, As Needed):
 │                                                                                │
 │  ┌──────────────────────────┐ ┌────────────────────┐ ┌─────────────────────┐ │
 │  │ Baremetal GPU Clusters    │ │ K8s GPU Clusters   │ │ GPU VMs (VMware)    │ │
-│  │ (S2 Batch Scheduler)     │ │                    │ │ (Managed by vCenter)│ │
+│  │ (IBS Batch Scheduler)     │ │                    │ │ (Managed by vCenter)│ │
 │  │                           │ │                    │ │                      │ │
 │  │ [Node - systemd deploy]  │ │ [Node - DaemonSet] │ │ [VM - systemd deploy]│ │
 │  │ • DCGM Exporter (:9400)  │ │ • DCGM Exporter    │ │ • DCGM Exporter     │ │
@@ -1303,7 +1303,7 @@ Phase 6 (Advanced, As Needed):
 │  │ • Inference server /metrics│ │ • Inference /metrics│ │ • Inference /metrics│ │
 │  │                           │ │                    │ │                      │ │
 │  │ [Legacy Systems]          │ │                    │ │ [Legacy Systems]     │ │
-│  │ • S2 Scheduler            │ │                    │ │ • VMware vCenter     │ │
+│  │ • IBS Scheduler            │ │                    │ │ • VMware vCenter     │ │
 │  │   ├ Job (time-series)     │ │                    │ │   └ GPU VM Inventory │ │
 │  │   ├ Node (current value)  │ │                    │ │                      │ │
 │  │   ├ Project (snapshot)    │ │                    │ │                      │ │
@@ -1341,7 +1341,7 @@ Phase 6 (Advanced, As Needed):
 │  └──────────────────────────────────────────────────────────┘                  │
 │                                                                                │
 │  ┌────────────────────────────────┐                                           │
-│  │  Metadata Collector             │  ← Polls S2 API + vCenter API           │
+│  │  Metadata Collector             │  ← Polls IBS API + vCenter API           │
 │  │  (K8s Deployment, 1 replica)    │  → ClickHouse Batch INSERT              │
 │  └──────────────────────────────── ┘                                          │
 │                                                                                │
@@ -1364,8 +1364,8 @@ Phase 6 (Advanced, As Needed):
 │  │     during L3 execution     │   │ • gpu_demand / gpu_inventory            │ │
 │  │ • L2: Inference server      │   │ • gpu_events (Zabbix)                   │ │
 │  │   metrics                   │   │ • gpu_profiling_traces / sessions       │ │
-│  │ • System/K8s metrics        │   │ • s2_jobs / s2_nodes                   │ │
-│  │                             │   │ • s2_projects / s2_pools               │ │
+│  │ • System/K8s metrics        │   │ • ibs_jobs / ibs_nodes                   │ │
+│  │                             │   │ • ibs_projects / ibs_pools               │ │
 │  │ Standard labels: env /      │   │ • vmware_vm_inventory                   │ │
 │  │ cluster / node / gpu /      │   │                                         │ │
 │  │ workload_type               │   │                                         │ │
@@ -1426,7 +1426,7 @@ Path A' — Lightweight Log Push (Node Vector Agent → Central Vector Aggregato
 
 Path B — Legacy API Polling (via Metadata Collector)
   ┌──────────────────┐         ┌───────────────────┐         ┌──────────────┐
-  │ S2 API Server    │ ←Poll── │ Metadata          │ ──INSERT→│ ClickHouse   │
+  │ IBS API Server    │ ←Poll── │ Metadata          │ ──INSERT→│ ClickHouse   │
   │ vCenter API      │         │ Collector (K8s)   │         │              │
   └──────────────────┘         └───────────────────┘         └──────────────┘
 ```
@@ -1481,15 +1481,15 @@ Path B — Legacy API Polling (via Metadata Collector)
 
 | Component | Role | Deployment Method | Notes |
 |---|---|---|---|
-| **Metadata Collector** | S2 + VMware metadata collection → ClickHouse | K8s Deployment (1 replica) | Adapter pattern, Python/Go |
-| ├─ S2 Adapter | S2 Job/Node metadata polling | Built-in Collector module | REST API or CLI method |
+| **Metadata Collector** | IBS + VMware metadata collection → ClickHouse | K8s Deployment (1 replica) | Adapter pattern, Python/Go |
+| ├─ IBS Adapter | IBS Job/Node metadata polling | Built-in Collector module | REST API or CLI method |
 | └─ VMware Adapter | vCenter VM Inventory polling | Built-in Collector module | pyVmomi SDK |
 
 ### 6.7 Recommended Components - L2.5 Job Statistics + L3 Profiling
 
 | Component | Role | Deployment Method | CUPTI Conflict | Notes |
 |---|---|---|---|---|
-| **DCGM Job Stats** | Per-Job GPU efficiency aggregation (L2.5) | S2 Hook integration | ✅ None | Phase 3, concurrent with L2 |
+| **DCGM Job Stats** | Per-Job GPU efficiency aggregation (L2.5) | IBS Hook integration | ✅ None | Phase 3, concurrent with L2 |
 | **Profiling Controller** | L3 request management, **L2 pause/resume** | K8s Deployment | - | L2↔L3 CUPTI conflict management |
 | **Module A: PyTorch Profiler** | Training operator analysis | Within training code | ⚠ L2 temporarily paused | Phase 5 |
 | **Module B: Nsight Systems** | General-purpose GPU timeline analysis | nsys installed on GPU nodes | ⚠ L2 temporarily paused | Phase 5, non-invasive |
@@ -1557,10 +1557,10 @@ Path B — Legacy API Polling (via Metadata Collector)
 ### 7.3 Legacy Metadata Flow — Path B (v4.1)
 
 ```
-  S2 API/CLI Server                           VMware vCenter API
+  IBS API/CLI Server                           VMware vCenter API
   (Belongs to Baremetal env)                  (Belongs to VM env)
   ┌──────────────────────┐           ┌──────────────────────────┐
-  │ S2 Scheduler         │           │ VMware vCenter            │
+  │ IBS Scheduler         │           │ VMware vCenter            │
   │                      │           │                           │
   │ /api/v1/jobs         │           │ pyVmomi:                  │
   │ /api/v1/nodes        │           │   Query VM + GPU + Host   │
@@ -1575,7 +1575,7 @@ Path B — Legacy API Polling (via Metadata Collector)
        │           Metadata Collector                     │
        │           (K8s Deployment, 1 replica)            │
        │                                                  │
-       │  S2 Adapters:              VMware Adapter:       │
+       │  IBS Adapters:              VMware Adapter:       │
        │   ├ Jobs    (time-series, 60s) └ VMs (current, 300s)│
        │   ├ Nodes   (current, 120s)                      │
        │   ├ Projects (snapshot, 600s)                     │
@@ -1585,10 +1585,10 @@ Path B — Legacy API Polling (via Metadata Collector)
                               ▼
                     ClickHouse Cluster
                   ┌────────────────────────┐
-                  │ • s2_jobs     (time-series)│
-                  │ • s2_nodes    (current)    │
-                  │ • s2_projects (snapshot)   │
-                  │ • s2_pools    (snapshot)   │
+                  │ • ibs_jobs     (time-series)│
+                  │ • ibs_nodes    (current)    │
+                  │ • ibs_projects (snapshot)   │
+                  │ • ibs_pools    (snapshot)   │
                   │ • vmware_vm_inventory      │
                   └───────────┬────────────┘
                               │
@@ -1755,21 +1755,21 @@ CREATE TABLE gpu_profiling_sessions (
 ORDER BY (session_id);
 ```
 
-### 8.6 S2 Metadata Storage Strategy Overview (v4.1 Revised)
+### 8.6 IBS Metadata Storage Strategy Overview (v4.1 Revised)
 
-S2-related data is separated into **3 storage strategies based on the nature of the data**.
+IBS-related data is separated into **3 storage strategies based on the nature of the data**.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    S2 Metadata Storage Strategy                       │
+│                    IBS Metadata Storage Strategy                       │
 │                                                                      │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────┐ │
 │  │ Time-series      │  │ Current Value   │  │ Snapshot            │ │
 │  │ (History)        │  │ (Current)       │  │                     │ │
 │  │ MergeTree        │  │ ReplacingMT     │  │ ReplacingMT         │ │
 │  │                  │  │                 │  │                      │ │
-│  │ s2_jobs          │  │ s2_nodes        │  │ s2_projects          │ │
-│  │                  │  │                 │  │ s2_pools             │ │
+│  │ ibs_jobs          │  │ ibs_nodes        │  │ ibs_projects          │ │
+│  │                  │  │                 │  │ ibs_pools             │ │
 │  │ Retains status   │  │ Only the latest │  │ Updated only on      │ │
 │  │ history at all   │  │ 1 record per    │  │ changes              │ │
 │  │ points in time   │  │ node retained   │  │ Configuration values │ │
@@ -1784,7 +1784,7 @@ S2-related data is separated into **3 storage strategies based on the nature of 
 │    (pending→running→completed) is important                          │
 │    → Track "when did this Job enter queue and how long was the wait" │
 │  • Nodes: Only current state matters; history can be tracked         │
-│    indirectly via s2_jobs                                            │
+│    indirectly via ibs_jobs                                            │
 │    → FINAL query quickly retrieves only the latest 1 row per node   │
 │  • Projects/Pools: Changes are infrequent; only snapshots at change │
 │    points are retained                                               │
@@ -1793,24 +1793,24 @@ S2-related data is separated into **3 storage strategies based on the nature of 
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 8.7 S2 Job Metadata Table — Time-series (v4.1)
+### 8.7 IBS Job Metadata Table — Time-series (v4.1)
 
 **Storage Strategy: Time-series (MergeTree)** — Retains status at all polling points, enabling time-axis analysis of the Job's lifecycle.
 
 ```sql
-CREATE TABLE s2_jobs (
+CREATE TABLE ibs_jobs (
     -- Collection timestamp (time axis of the time-series)
     collected_at     DateTime64(3),         -- Metadata Collector polling time
 
     -- Job identification
-    job_id           String,                -- S2 Job unique ID
+    job_id           String,                -- IBS Job unique ID
     job_name         String,                -- Job name (user-specified)
 
     -- User/organization info
     user_id          LowCardinality(String),  -- Submitter ID
     team             LowCardinality(String),  -- Team/group
-    project          LowCardinality(String),  -- S2 Project name (FairShare unit)
-    queue            LowCardinality(String),  -- S2 Queue (partition) name
+    project          LowCardinality(String),  -- IBS Project name (FairShare unit)
+    queue            LowCardinality(String),  -- IBS Queue (partition) name
 
     -- Job status (core field tracked as time-series)
     status           LowCardinality(String),  -- pending, running, completed, failed, cancelled
@@ -1865,17 +1865,17 @@ With history:
 -- 1) Currently running Job list (latest snapshot)
 SELECT job_id, job_name, user_id, team, project, queue,
        node_list, gpu_count, gpu_indices, start_time
-FROM s2_jobs
+FROM ibs_jobs
 WHERE status = 'running'
   AND collected_at = (
-    SELECT max(collected_at) FROM s2_jobs AS inner
-    WHERE inner.job_id = s2_jobs.job_id
+    SELECT max(collected_at) FROM ibs_jobs AS inner
+    WHERE inner.job_id = ibs_jobs.job_id
   )
 ORDER BY start_time;
 
 -- 2) Find running Job on a specific node+GPU (core for GPU metric Enrichment)
 SELECT job_id, job_name, user_id, team
-FROM s2_jobs
+FROM ibs_jobs
 WHERE has(node_list, 'gpu-node-03')
   AND has(gpu_indices, 0)
   AND status = 'running'
@@ -1889,7 +1889,7 @@ SELECT job_id, job_name, team, queue,
        minIf(collected_at, status = 'running') AS first_seen_running,
        dateDiff('second', min(collected_at),
                 minIf(collected_at, status = 'running')) AS wait_seconds
-FROM s2_jobs
+FROM ibs_jobs
 WHERE collected_at >= now() - INTERVAL 24 HOUR
 GROUP BY job_id, job_name, team, queue
 HAVING minIf(collected_at, status = 'running') IS NOT NULL
@@ -1897,7 +1897,7 @@ ORDER BY wait_seconds DESC;
 
 -- 4) Which Job was using which GPU at a specific time (past retrospective)
 SELECT job_id, job_name, user_id, team, node_list, gpu_indices, gpu_count
-FROM s2_jobs
+FROM ibs_jobs
 WHERE status = 'running'
   AND collected_at >= '2025-07-15 14:00:00'
   AND collected_at <  '2025-07-15 14:02:00'
@@ -1907,19 +1907,19 @@ ORDER BY job_id;
 SELECT team,
        countDistinct(job_id) AS job_count,
        sum(gpu_count) * 60 / 3600 AS gpu_hours  -- 60s interval × GPU count
-FROM s2_jobs
+FROM ibs_jobs
 WHERE status = 'running'
   AND collected_at >= now() - INTERVAL 24 HOUR
 GROUP BY team
 ORDER BY gpu_hours DESC;
 ```
 
-### 8.8 S2 Node Status Table — Current Value (v4.1)
+### 8.8 IBS Node Status Table — Current Value (v4.1)
 
-**Storage Strategy: Current Value (ReplacingMergeTree)** — Only the latest status record per node is retained. When historical data is needed, it is tracked indirectly via the s2_jobs table.
+**Storage Strategy: Current Value (ReplacingMergeTree)** — Only the latest status record per node is retained. When historical data is needed, it is tracked indirectly via the ibs_jobs table.
 
 ```sql
-CREATE TABLE s2_nodes (
+CREATE TABLE ibs_nodes (
     -- Collection timestamp (version column for ReplacingMergeTree)
     collected_at     DateTime64(3),
 
@@ -1927,12 +1927,12 @@ CREATE TABLE s2_nodes (
     node_id          String,                  -- Node hostname
 
     -- Cluster/Pool membership
-    cluster_id       LowCardinality(String),  -- S2 cluster identifier
+    cluster_id       LowCardinality(String),  -- IBS cluster identifier
     pool             LowCardinality(String),  -- Logical Node Pool name
 
     -- Status
     state            LowCardinality(String),  -- idle, alloc, mixed, drain, down
-    partition        LowCardinality(String),  -- S2 partition name
+    partition        LowCardinality(String),  -- IBS partition name
 
     -- Resource info (current value)
     gpu_total        UInt8,
@@ -1960,7 +1960,7 @@ ReplacingMergeTree:
   FINAL query always retrieves only the latest status (120 nodes → 120 rows)
 
   When node status history is needed:
-  → Can be tracked indirectly via "Job allocation changes on this node" in the s2_jobs table
+  → Can be tracked indirectly via "Job allocation changes on this node" in the ibs_jobs table
   → If only drain/down history is needed, can record as separate events in the gpu_events table
 ```
 
@@ -1974,41 +1974,41 @@ SELECT cluster_id,
        round(sum(gpu_alloc) / sum(gpu_total) * 100, 1) AS utilization_pct,
        countIf(state = 'down') AS down_nodes,
        countIf(state = 'drain') AS drain_nodes
-FROM s2_nodes FINAL;
+FROM ibs_nodes FINAL;
 
 -- GPU availability by Pool
 SELECT pool, gpu_type,
        count() AS node_count,
        sum(gpu_total) AS total_gpus,
        sum(gpu_total - gpu_alloc) AS available_gpus
-FROM s2_nodes FINAL
+FROM ibs_nodes FINAL
 WHERE state NOT IN ('down', 'drain')
 GROUP BY pool, gpu_type;
 
 -- Failed/maintenance node list
 SELECT node_id, state, reason, pool, collected_at
-FROM s2_nodes FINAL
+FROM ibs_nodes FINAL
 WHERE state IN ('down', 'drain')
 ORDER BY collected_at;
 ```
 
-### 8.9 S2 Project Info Table — Snapshot (v4.1 New)
+### 8.9 IBS Project Info Table — Snapshot (v4.1 New)
 
 **Storage Strategy: Snapshot (ReplacingMergeTree)** — Since Project settings change infrequently, only snapshots at the time of change are retained. It has a flexible structure centered on JSON.
 
 ```sql
-CREATE TABLE s2_projects (
+CREATE TABLE ibs_projects (
     -- Collection timestamp (version column)
     collected_at     DateTime64(3),
 
     -- Project identification (ORDER BY key)
-    project_id       String,                  -- S2 Project unique ID/name
-    cluster_id       LowCardinality(String),  -- S2 cluster identifier
+    project_id       String,                  -- IBS Project unique ID/name
+    cluster_id       LowCardinality(String),  -- IBS cluster identifier
 
     -- Basic info
     project_name     String,                  -- Project display name
     description      String,                  -- Description
-    owner            LowCardinality(String),  -- Project owner/team
+    owner            LowCardinality(String),  -- Project owner or team
     status           LowCardinality(String),  -- active, suspended, archived
 
     -- FairShare / Limit / License (flexibly managed as JSON)
@@ -2040,8 +2040,8 @@ CREATE TABLE s2_projects (
     --   "feature_flags": ["multi_node", "preemption"]
     -- }
 
-    -- Full original (raw S2 API response)
-    raw_config       String                   -- JSON: Full raw S2 API response
+    -- Full original (raw IBS API response)
+    raw_config       String                   -- JSON: Full raw IBS API response
 ) ENGINE = ReplacingMergeTree(collected_at)
 ORDER BY (project_id, cluster_id);
 ```
@@ -2055,37 +2055,37 @@ SELECT project_id, project_name, owner,
        JSONExtractFloat(fairshare_config, 'max_share') AS max_share,
        JSONExtractInt(resource_limits, 'max_gpus') AS max_gpus,
        JSONExtractInt(resource_limits, 'max_running_jobs') AS max_running_jobs
-FROM s2_projects FINAL
+FROM ibs_projects FINAL
 WHERE status = 'active'
 ORDER BY weight DESC;
 
--- Actual GPU utilization compared to FairShare (joined with s2_jobs)
+-- Actual GPU utilization compared to FairShare (joined with ibs_jobs)
 SELECT p.project_id, p.project_name,
        JSONExtractInt(p.resource_limits, 'max_gpus') AS limit_gpus,
        count(DISTINCT j.job_id) AS running_jobs,
        sum(j.gpu_count) AS current_gpus
-FROM s2_projects FINAL AS p
+FROM ibs_projects FINAL AS p
 LEFT JOIN (
     SELECT project, job_id, gpu_count
-    FROM s2_jobs
+    FROM ibs_jobs
     WHERE status = 'running'
       AND collected_at >= now() - INTERVAL 2 MINUTE
 ) AS j ON p.project_id = j.project
 GROUP BY p.project_id, p.project_name, p.resource_limits;
 ```
 
-### 8.10 S2 Pool Information Table — Snapshot (v4.1 New)
+### 8.10 IBS Pool Information Table — Snapshot (v4.1 New)
 
 **Storage Strategy: Snapshot (ReplacingMergeTree)** — Pool configuration (which nodes belong to which Logical Pool) changes infrequently, so it is managed as snapshots.
 
 ```sql
-CREATE TABLE s2_pools (
+CREATE TABLE ibs_pools (
     -- Collection timestamp (version column)
     collected_at     DateTime64(3),
 
     -- Pool identification (ORDER BY key)
     pool_id          String,                  -- Logical Node Pool name/ID
-    cluster_id       LowCardinality(String),  -- S2 cluster identifier
+    cluster_id       LowCardinality(String),  -- IBS cluster identifier
 
     -- Basic information
     pool_name        String,                  -- Pool display name
@@ -2118,7 +2118,7 @@ CREATE TABLE s2_pools (
     -- }
 
     -- Full original
-    raw_config       String                   -- JSON: Full raw S2 API response
+    raw_config       String                   -- JSON: Full raw IBS API response
 ) ENGINE = ReplacingMergeTree(collected_at)
 ORDER BY (pool_id, cluster_id);
 ```
@@ -2132,21 +2132,21 @@ SELECT pool_id, pool_name,
        JSONExtractInt(gpu_config, 'total_gpus') AS total_gpus,
        JSONLength(JSONExtractRaw(node_list, 'nodes')) AS node_count,
        status
-FROM s2_pools FINAL
+FROM ibs_pools FINAL
 WHERE status = 'active';
 
--- Actual utilization per Pool (joined with s2_nodes)
+-- Actual utilization per Pool (joined with ibs_nodes)
 SELECT p.pool_id, p.pool_name,
        JSONExtractInt(p.gpu_config, 'total_gpus') AS total_gpus,
        sum(n.gpu_alloc) AS allocated_gpus,
        round(sum(n.gpu_alloc) / JSONExtractInt(p.gpu_config, 'total_gpus') * 100, 1) AS util_pct
-FROM s2_pools FINAL AS p
-JOIN s2_nodes FINAL AS n ON n.pool = p.pool_id
+FROM ibs_pools FINAL AS p
+JOIN ibs_nodes FINAL AS n ON n.pool = p.pool_id
 GROUP BY p.pool_id, p.pool_name, p.gpu_config;
 
 -- Detailed nodes belonging to a specific Pool
 SELECT n.node_id, n.state, n.gpu_total, n.gpu_alloc, n.gpu_type
-FROM s2_nodes FINAL AS n
+FROM ibs_nodes FINAL AS n
 WHERE n.pool = 'pool-h100-cluster-a'
 ORDER BY n.node_id;
 ```
@@ -2188,10 +2188,10 @@ TTL collected_at + INTERVAL 12 MONTH;
 | 4 | `gpu_events` | MergeTree | Time-series | Zabbix Webhook | 1 year | HW events |
 | 5 | `gpu_profiling_traces` | MergeTree | Time-series | Profiling Controller | 3 months | L3 kernel data |
 | 6 | `gpu_profiling_sessions` | ReplacingMT | Current value | Profiling Controller | - | L3 session summary |
-| 7 | **`s2_jobs`** | **MergeTree** | **Time-series** | Metadata Collector | 6 months | **Job lifecycle history** |
-| 8 | **`s2_nodes`** | **ReplacingMT** | **Current value** | Metadata Collector | - | **Latest node state** |
-| 9 | **`s2_projects`** | **ReplacingMT** | **Snapshot** | Metadata Collector | - | **FairShare/Limit/License (JSON)** |
-| 10 | **`s2_pools`** | **ReplacingMT** | **Snapshot** | Metadata Collector | - | **Logical Node Pool configuration (JSON)** |
+| 7 | **`ibs_jobs`** | **MergeTree** | **Time-series** | Metadata Collector | 6 months | **Job lifecycle history** |
+| 8 | **`ibs_nodes`** | **ReplacingMT** | **Current value** | Metadata Collector | - | **Latest node state** |
+| 9 | **`ibs_projects`** | **ReplacingMT** | **Snapshot** | Metadata Collector | - | **FairShare/Limit/License (JSON)** |
+| 10 | **`ibs_pools`** | **ReplacingMT** | **Snapshot** | Metadata Collector | - | **Logical Node Pool configuration (JSON)** |
 | 11 | **`vmware_vm_inventory`** | ReplacingMT | Current value | Metadata Collector | 12 months | VMware GPU VM |
 
 ---
@@ -2323,28 +2323,28 @@ ingestion/                         # Custom data ingestion (optional)
 
 ### Phase 3: Analytics & Legacy Metadata Integration (3-4 weeks) <- v4 Extension
 
-**Goal**: Load demand data/inventory + **Collect legacy metadata (S2, VMware) and combine with GPU metrics** + **DCGM Job Stats integration**
+**Goal**: Load demand data/inventory + **Collect legacy metadata (IBS, VMware) and combine with GPU metrics** + **DCGM Job Stats integration**
 
 - [ ] Create gpu_demand, gpu_inventory, gpu_events tables
-- [ ] **Create s2_jobs, s2_nodes, s2_projects, s2_pools, vmware_vm_inventory tables (v4.1)**
+- [ ] **Create ibs_jobs, ibs_nodes, ibs_projects, ibs_pools, vmware_vm_inventory tables (v4.1)**
 - [ ] **Develop Metadata Collector (v4)**
-  - [ ] S2 Jobs Adapter (time-series), S2 Nodes Adapter (current value)
-  - [ ] S2 Projects/Pools Adapter (snapshot, JSON)
+  - [ ] IBS Jobs Adapter (time-series), IBS Nodes Adapter (current value)
+  - [ ] IBS Projects/Pools Adapter (snapshot, JSON)
   - [ ] VMware Adapter implementation (pyVmomi)
   - [ ] Schema Normalizer + ClickHouse Writer
   - [ ] K8s Deployment + ConfigMap + Secret manifests
 - [ ] **Deploy Metadata Collector and verify data collection**
 - [ ] **DCGM Job Stats integration (L2.5, no CUPTI conflict)**
-  - [ ] Design S2 Job lifecycle hook (Job start -> dcgmi stats -s / Job end -> dcgmi stats -x)
+  - [ ] Design IBS Job lifecycle hook (Job start -> dcgmi stats -s / Job end -> dcgmi stats -x)
   - [ ] Load Job Stats results -> ClickHouse (using gpu_profiling_sessions table)
   - [ ] Per-job GPU efficiency summary dashboard panel
 - [ ] Develop and deploy GPU demand data Ingestion API
 - [ ] (Optional) Zabbix Webhook -> gpu_events integration
 - [ ] Deploy agents for VM environment
-- [ ] **Build Job Explorer dashboard**: S2 Job<->GPU metric combination + DCGM Job Stats
+- [ ] **Build Job Explorer dashboard**: IBS Job<->GPU metric combination + DCGM Job Stats
 - [ ] **Build VM GPU Inventory dashboard**: VMware VM status
 
-**Completion Criteria**: In Grafana, able to view S2 Job info running on "gpu-node-03's GPU 0", view per-job GPU Util summary, and query VMware GPU VM inventory
+**Completion Criteria**: In Grafana, able to view IBS Job info running on "gpu-node-03's GPU 0", view per-job GPU Util summary, and query VMware GPU VM inventory
 
 ### Phase 4: Alerting & Hardening (1-2 weeks)
 
@@ -2400,19 +2400,19 @@ ingestion/                         # Custom data ingestion (optional)
 | **Profiling Analysis** | ClickHouse | L3 | Per-session kernel analysis, Top-K kernels, Compute Ratio, session comparison |
 | **Demand & Capacity** | ClickHouse | - | GPU demand trends, per-team usage, inventory status |
 | **System Overview** | VictoriaMetrics | - | Per-environment node status, CPU/Mem/Disk/Network |
-| ★ **Job Explorer** *(v4)* | **ClickHouse + VM** | - | **S2 Job<->GPU mapping, per-team/per-user GPU utilization, job wait time, queue status** |
+| ★ **Job Explorer** *(v4)* | **ClickHouse + VM** | - | **IBS Job<->GPU mapping, per-team/per-user GPU utilization, job wait time, queue status** |
 | ★ **VM GPU Inventory** *(v4)* | **ClickHouse** | - | **VMware GPU VM list, distribution per ESXi Host, allocation per Resource Pool, VM status history** |
 
 ### Job Explorer Dashboard Details (v4)
 
 | Panel | Data Source | Description |
 |---|---|---|
-| Running Jobs Table | ClickHouse (s2_jobs) | Job ID, name, user, team, node, GPU count, elapsed time |
+| Running Jobs Table | ClickHouse (ibs_jobs) | Job ID, name, user, team, node, GPU count, elapsed time |
 | Per-Job GPU Util Heatmap | VM + ClickHouse Join | Average Util of GPUs used by each job |
-| Per-Team GPU Allocation Bar Chart | ClickHouse (s2_jobs) | Current GPU allocation count per team |
-| Queue Pending Job Count | ClickHouse (s2_jobs) | Number of pending status jobs by queue |
-| Node Status Map | ClickHouse (s2_nodes) | idle/alloc/drain/down visualization |
-| Job History Timeline | ClickHouse (s2_jobs) | Job execution history for a specific node/GPU |
+| Per-Team GPU Allocation Bar Chart | ClickHouse (ibs_jobs) | Current GPU allocation count per team |
+| Queue Pending Job Count | ClickHouse (ibs_jobs) | Number of pending status jobs by queue |
+| Node Status Map | ClickHouse (ibs_nodes) | idle/alloc/drain/down visualization |
+| Job History Timeline | ClickHouse (ibs_jobs) | Job execution history for a specific node/GPU |
 
 ### VM GPU Inventory Dashboard Details (v4)
 
@@ -2440,11 +2440,11 @@ ingestion/                         # Custom data ingestion (optional)
 | D9 | VM mode | Single vs Cluster | **Cluster** | High volume of GPU + inference metrics |
 | D10 | Zabbix role | Full retention vs **Reduced role** | Reduced role | Retain only IPMI/HW/SNMP |
 | D11 | Baremetal deployment | Manual vs Automated | **Ansible** | Consistent config, easy updates |
-| **D12** | **Metadata collection approach** *(v4)* | **Agent-based vs Central polling** | **Central polling (Metadata Collector)** | **Collects all metadata with 1 Deployment without adding agents to nodes. Polling is suitable since S2/vCenter have API servers** |
+| **D12** | **Metadata collection approach** *(v4)* | **Agent-based vs Central polling** | **Central polling (Metadata Collector)** | **Collects all metadata with 1 Deployment without adding agents to nodes. Polling is suitable since IBS/vCenter have API servers** |
 | **D13** | **GPU<->Job correlation approach** *(v4)* | **vmagent label injection vs Grafana query-time JOIN** | **Grafana JOIN (Phase 3), vmagent label (Phase 6)** | **Grafana JOIN is simpler to implement with sufficient real-time capability. Label injection is also easy in central vmagent Pull architecture (Phase 6)** |
 | **D14** | **VMware SDK** *(v4)* | **pyVmomi vs govmomi vs REST API** | **pyVmomi (Python)** | **Official SDK, easy GPU PCI device querying, natural fit with Python implementation of Metadata Collector** |
 | **D15** | **DCGM Profiling <-> CUPTI conflict** *(v4.1)* | **Keep L2 always-on vs Temporarily suspend L2 vs Dedicated L3 nodes** | **L2 temporary suspension protocol + DCGM Job Stats in parallel** | **DCGM Profiling (L2) and CUPTI-based L3 cannot run simultaneously. Phase 3 uses DCGM Job Stats (no conflict) for job-level statistics, Phase 5 temporarily suspends L2 only on target GPUs during L3 execution** |
-| **D16** | **S2 metadata storage strategy** *(v4.1)* | **Single strategy vs Per-data separation** | **3-strategy separation** | **Jobs: Time-series (MergeTree) for lifecycle tracking, Nodes: Current value (ReplacingMT) for latest only, Projects/Pools: Snapshot (ReplacingMT, JSON) for configuration change history** |
+| **D16** | **IBS metadata storage strategy** *(v4.1)* | **Single strategy vs Per-data separation** | **3-strategy separation** | **Jobs: Time-series (MergeTree) for lifecycle tracking, Nodes: Current value (ReplacingMT) for latest only, Projects/Pools: Snapshot (ReplacingMT, JSON) for configuration change history** |
 | **D17** | **Module C (CUPTI Wrapper) necessity** *(v4.1)* | **Develop vs Defer** | **Priority lowered** | **Module B (Nsight Systems) is non-invasive while providing richer data. Since it uses CUPTI as well, there is little benefit in developing a separate CUPTI Wrapper** |
 | **D18** | **Metric collection approach** *(v5)* | **Push (node vmagent) vs Pull (central vmagent) vs Hybrid** | **Hybrid Pull** | **Metrics: Central vmagent does Pull (node vmagent removed, 57% node resource reduction, centralized control of collection targets/intervals/labels). Logs: Node Vector Agent does lightweight Push (Pull is unsuitable for event streams like logs)** |
 | **D19** | **Service Discovery** *(v5)* | **Static vs File SD vs Consul vs DNS** | **File-based SD (Ansible-managed)** | **Consul/DNS SD is difficult in airgap environments. Ansible auto-generates JSON files on node addition/removal -> vmagent detects every 60 seconds. K8s uses K8s SD for auto-discovery** |
@@ -2481,8 +2481,8 @@ ingestion/                         # Custom data ingestion (optional)
 │  └── kube-state-metrics  - K8s object state (central vmagent Pulls)  │
 │                                                                       │
 │  Legacy Metadata Collection (v4~)                                     │
-│  └── Metadata Collector  - S2 + VMware API polling → ClickHouse      │
-│      ├── S2 Adapters     - Jobs (time-series), Nodes (current value),│
+│  └── Metadata Collector  - IBS + VMware API polling → ClickHouse      │
+│      ├── IBS Adapters     - Jobs (time-series), Nodes (current value),│
 │      │                     Projects/Pools (snapshot, JSON)            │
 │      └── VMware Adapter  - GPU VM Inventory (pyVmomi)                │
 │                                                                       │
@@ -2498,7 +2498,7 @@ ingestion/                         # Custom data ingestion (optional)
 │  └── Custom Ingestion API - Demand/JSON data collection (optional)   │
 │                                                                       │
 │  L2.5 Job Statistics (No CUPTI Conflict)                              │
-│  └── DCGM Job Stats     - S2 Job hook integration, concurrent with L2│
+│  └── DCGM Job Stats     - IBS Job hook integration, concurrent with L2│
 │                                                                       │
 │  L3 On-demand Profiling (Requires L2 Temporary Suspension)           │
 │  ├── Profiling Controller - L3 request management + L2 pause/resume  │
@@ -2529,10 +2529,10 @@ Once this Plan is finalized:
 2. **Phase 2 code**: Vector Aggregator K8s Deployment, Vector Agent lightweight config, ClickHouse DDL
 3. **Phase 3 code** (v4~):
    - Metadata Collector project scaffolding (Python/Go)
-   - S2 Adapter implementation (S2 API spec confirmation needed)
+   - IBS Adapter implementation (IBS API spec confirmation needed)
    - VMware Adapter implementation (vCenter connection info needed)
-   - ClickHouse DDL (s2_jobs, s2_nodes, s2_projects, s2_pools, vmware_vm_inventory)
-   - DCGM Job Stats integration (S2 Job hook)
+   - ClickHouse DDL (ibs_jobs, ibs_nodes, ibs_projects, ibs_pools, vmware_vm_inventory)
+   - DCGM Job Stats integration (IBS Job hook)
    - K8s manifests (Deployment, ConfigMap, Secret)
    - Job Explorer / VM GPU Inventory Grafana dashboards
 4. **Phase 4 code**: vmalert rules, Alertmanager config
@@ -2542,12 +2542,12 @@ Once this Plan is finalized:
 
 | Item | Details | Owner |
 |---|---|---|
-| **Firewall (v5)** | Allow central vmagent K8s Pod -> each GPU node :9400/:9100 access | Infra/Network team |
-| **S2 API Spec** | REST API endpoints, authentication method, response format | Confirm with S2 operations team |
-| **S2 CLI Availability** | If API is unavailable, confirm CLI output format | Confirm with S2 operations team |
+| **Firewall (v5)** | Allow central vmagent K8s Pod -> each GPU node :9400/:9100 access | Platform operators |
+| **IBS API Spec** | REST API endpoints, authentication method, response format | Confirm with scheduler operators |
+| **IBS CLI Availability** | If API is unavailable, confirm CLI output format | Confirm with scheduler operators |
 | **vCenter Connection Info** | vCenter URL, service account, GPU VM filter conditions | Confirm with VMware infra team |
 | **GPU Passthrough vs vGPU** | Which approach the current environment uses (collection field differences) | Confirm with VMware infra team |
-| **S2 Job<->GPU Index Mapping** | What format S2 provides GPU indices in | Confirm with S2 operations team |
-| **Network Accessibility** | Firewall between K8s cluster -> S2 API, vCenter | Confirm with Infra/Network team |
+| **IBS Job<->GPU Index Mapping** | What format IBS provides GPU indices in | Confirm with scheduler operators |
+| **Network Accessibility** | Firewall between K8s cluster -> IBS API, vCenter | Confirm with platform operators |
 
 We can implement each phase together using Claude Code.
