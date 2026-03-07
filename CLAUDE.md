@@ -42,7 +42,8 @@ Phase 1: Foundation (L1+L2 metric pipeline)
 - D19: File-based Service Discovery (Ansible-managed JSON)
 
 ## Key Reference Documents (read before major changes)
-- `docs/planning-v5.md` — Full system architecture design document (v5)
+- `docs/planning-v5.md` — Full system architecture design document (v5, English)
+- `docs/planning-v5.ko.md` — Same document in Korean (original)
 
 ## Branch Strategy
 - `dev` is the integration branch — all feature branches branch from and merge into `dev`
