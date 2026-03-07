@@ -1,0 +1,14 @@
+---
+- name: Create DCGM Exporter systemd service
+  template:
+    src: dcgm-exporter.service.j2
+    dest: /etc/systemd/system/dcgm-exporter.service
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable and start DCGM Exporter
+  systemd:
+    name: dcgm-exporter
+    enabled: true
+    state: started
+    daemon_reload: true
