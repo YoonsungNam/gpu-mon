@@ -1,0 +1,33 @@
+---
+- name: Install Vector agent
+  get_url:
+    url: "https://packages.timber.io/vector/{{ vector_version }}/vector-{{ vector_version }}-x86_64-unknown-linux-musl.tar.gz"
+    dest: /tmp/vector.tar.gz
+
+- name: Extract Vector binary
+  unarchive:
+    src: /tmp/vector.tar.gz
+    dest: /usr/local/bin/
+    remote_src: true
+    extra_opts: ["--strip-components=2", "--wildcards", "*/bin/vector"]
+
+- name: Deploy Vector agent config
+  template:
+    src: vector-agent.toml.j2
+    dest: /etc/vector/vector.toml
+    mode: "0644"
+  notify: Restart Vector
+
+- name: Create Vector systemd service
+  template:
+    src: vector.service.j2
+    dest: /etc/systemd/system/vector.service
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable and start Vector
+  systemd:
+    name: vector
+    enabled: true
+    state: started
+    daemon_reload: true
