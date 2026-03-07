@@ -1,0 +1,10 @@
+apiVersion: v2
+name: clickhouse-cluster
+description: >
+  ClickHouseInstallation CRD resource for gpu-mon.
+  Requires altinity-clickhouse-operator to be installed first.
+type: application
+version: 0.1.0
+appVersion: "24.8"
+dependencies:
+  []
