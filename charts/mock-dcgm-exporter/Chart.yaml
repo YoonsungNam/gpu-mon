@@ -1,0 +1,9 @@
+apiVersion: v2
+name: mock-dcgm-exporter
+description: >
+  Mock DCGM Exporter for gpu-mon development environments.
+  Generates realistic synthetic GPU metrics (L1 + L2) without real GPUs.
+  Used in macbook (Docker Compose) and homelab (K8s) environments.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vmagent-central.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vmagent-central.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "vmagent-central.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vmagent-central.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "vmagent-central.fullname" . }}
+      containers:
+        - name: vmagent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "-promscrape.config=/etc/vmagent/config.yaml"
+            {{- range .Values.remoteWrite }}
+            - "-remoteWrite.url={{ .url }}"
+            {{- end }}
+            - "-httpListenAddr=:{{ .Values.service.port }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/vmagent
+            {{- if .Values.fileSD.enabled }}
+            - name: file-sd
+              mountPath: /etc/vmagent/sd
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "vmagent-central.fullname" . }}-config
+        {{- if .Values.fileSD.enabled }}
+        - name: file-sd
+          configMap:
+            name: {{ .Values.fileSD.configMapName }}
+        {{- end }}

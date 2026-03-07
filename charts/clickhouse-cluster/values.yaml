@@ -1,0 +1,21 @@
+clickhouse:
+  cluster:
+    name: gpu-monitoring
+    layout:
+      shardsCount: 1
+      replicasCount: 1
+  image: clickhouse/clickhouse-server:24.8
+  storage:
+    size: 20Gi
+    storageClassName: ""   # Use default SC if empty
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 2
+      memory: 4Gi
+
+schema_init:
+  enabled: true
+  image: clickhouse/clickhouse-client:24.8

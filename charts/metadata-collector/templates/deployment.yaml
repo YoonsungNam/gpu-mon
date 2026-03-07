@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "metadata-collector.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "metadata-collector.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "metadata-collector.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "metadata-collector.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: metadata-collector
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: health
+              containerPort: {{ .Values.config.healthPort }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/metadata-collector
+          env:
+            {{- if .Values.existingSecrets.s2ApiToken }}
+            - name: S2_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecrets.s2ApiToken }}
+                  key: token
+            {{- end }}
+            {{- if .Values.existingSecrets.vcenterCredentials }}
+            - name: VCENTER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecrets.vcenterCredentials }}
+                  key: username
+            - name: VCENTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecrets.vcenterCredentials }}
+                  key: password
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "metadata-collector.fullname" . }}-config

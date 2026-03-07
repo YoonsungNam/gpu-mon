@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mock-dcgm-exporter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mock-dcgm-exporter.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mock-dcgm-exporter.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "mock-dcgm-exporter.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: mock-dcgm-exporter
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: NODE_COUNT
+              value: "{{ .Values.nodeCount }}"
+            - name: GPUS_PER_NODE
+              value: "{{ .Values.gpusPerNode }}"
+            - name: GPU_MODEL
+              value: "{{ .Values.gpuModel }}"
+            - name: SCRAPE_INTERVAL
+              value: "{{ .Values.scrapeInterval }}"
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.service.port }}
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

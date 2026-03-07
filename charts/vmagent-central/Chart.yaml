@@ -1,0 +1,9 @@
+apiVersion: v2
+name: vmagent-central
+description: >
+  Central vmagent deployment for gpu-mon.
+  Pulls metrics from all node exporters (File SD + K8s SD)
+  and remote_writes to VictoriaMetrics.
+type: application
+version: 0.1.0
+appVersion: "v1.106.1"

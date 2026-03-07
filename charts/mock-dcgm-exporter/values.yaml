@@ -1,0 +1,26 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/yoonsungnam/gpu-mon/mock-dcgm-exporter
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Simulated GPU topology
+nodeCount: 2
+gpusPerNode: 2
+gpuModel: "A100"
+
+# Metric update interval (seconds)
+scrapeInterval: 15
+
+service:
+  type: ClusterIP
+  port: 9400
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
