@@ -1,0 +1,60 @@
+# Central vmagent configuration — production corp template.
+# Pulls metrics from all 120+ baremetal/VM GPU nodes via File SD.
+
+replicaCount: 2   # HA pair
+
+remoteWrite:
+  - url: "http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prometheus/"
+
+scrapeConfig:
+  global:
+    scrape_interval: 15s
+
+  scrape_configs:
+    # ── Baremetal GPU Clusters (File SD — Ansible-managed) ────────────────
+    - job_name: "baremetal-dcgm"
+      file_sd_configs:
+        - files: ["/etc/vmagent/sd/gpu-nodes.json"]
+          refresh_interval: 60s
+      relabel_configs:
+        - source_labels: [__address__]
+          regex: "(.+):.*"
+          target_label: node
+
+    - job_name: "baremetal-node-exporter"
+      file_sd_configs:
+        - files: ["/etc/vmagent/sd/gpu-nodes.json"]
+          refresh_interval: 60s
+      relabel_configs:
+        - source_labels: [__address__]
+          regex: "(.+):[0-9]+"
+          replacement: "${1}:9100"
+          target_label: __address__
+        - source_labels: [__address__]
+          regex: "(.+):.*"
+          target_label: node
+
+    # ── GPU VMs (VMware — File SD) ─────────────────────────────────────────
+    - job_name: "vm-dcgm"
+      file_sd_configs:
+        - files: ["/etc/vmagent/sd/vm-gpu-nodes.json"]
+          refresh_interval: 60s
+
+    # ── Inference servers ──────────────────────────────────────────────────
+    - job_name: "inference-servers"
+      file_sd_configs:
+        - files: ["/etc/vmagent/sd/inference-servers.json"]
+          refresh_interval: 60s
+      relabel_configs:
+        - source_labels: [__address__]
+          regex: "(.+):.*"
+          target_label: node
+
+    # ── K8s components ─────────────────────────────────────────────────────
+    - job_name: "kube-state-metrics"
+      kubernetes_sd_configs:
+        - role: service
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_service_label_app_kubernetes_io_name]
+          regex: "kube-state-metrics"
+          action: keep

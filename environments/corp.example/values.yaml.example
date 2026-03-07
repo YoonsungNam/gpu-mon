@@ -1,0 +1,25 @@
+# Corp environment values template.
+# Copy to environments/corp/values.yaml (in the separate private repo)
+# and fill in real infrastructure details.
+
+image_registry: "YOUR_INTERNAL_REGISTRY_HERE"   # e.g. registry.internal.corp.com
+image_tag: "v1.0.0"
+
+# Airgap: path to pre-downloaded Helm chart .tgz files
+charts_dir: "/opt/gpu-mon/charts"
+
+# Feature flags
+metadata_collector:
+  enabled: true          # Enable S2 + VMware metadata collection
+
+mock_dcgm:
+  enabled: false         # Use real DCGM exporters in production
+
+# Grafana
+grafana_host: "grafana.monitoring.YOUR_DOMAIN_HERE"
+
+# Retention (adjust based on available storage)
+retention:
+  metrics_days: 90
+  logs_days: 30
+  metadata_days: 180
