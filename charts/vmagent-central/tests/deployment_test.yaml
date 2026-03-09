@@ -1,38 +1,45 @@
 suite: vmagent-central deployment
 templates:
   - templates/deployment.yaml
+  - templates/configmap.yaml
 
 tests:
   - it: renders a Deployment resource
+    documentIndex: 0
     asserts:
       - isKind:
           of: Deployment
 
   - it: uses the correct vmagent image
+    documentIndex: 0
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image
           value: victoriametrics/vmagent:v1.106.1
 
   - it: passes --promscrape.config argument
+    documentIndex: 0
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
           content: "-promscrape.config=/etc/vmagent/config.yaml"
 
   - it: passes --remoteWrite.url argument with default value
+    documentIndex: 0
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args
           content: "-remoteWrite.url=http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prometheus/"
 
   - it: exposes port 8429
+    documentIndex: 0
     asserts:
       - equal:
           path: spec.template.spec.containers[0].ports[0].containerPort
           value: 8429
 
   - it: mounts config volume
+    documentIndex: 0
     asserts:
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
@@ -41,6 +48,7 @@ tests:
             mountPath: /etc/vmagent
 
   - it: sets replicaCount from values
+    documentIndex: 0
     set:
       replicaCount: 2
     asserts:
@@ -49,11 +57,13 @@ tests:
           value: 2
 
   - it: renders liveness probe
+    documentIndex: 0
     asserts:
       - isNotNull:
           path: spec.template.spec.containers[0].livenessProbe
 
   - it: checksum annotation changes when scrapeConfig changes
+    documentIndex: 0
     set:
       scrapeConfig:
         global:
@@ -63,6 +73,7 @@ tests:
           path: spec.template.metadata.annotations["checksum/config"]
 
   - it: does not mount file-sd volume when fileSD disabled
+    documentIndex: 0
     set:
       fileSD:
         enabled: false
@@ -73,6 +84,7 @@ tests:
             name: file-sd
 
   - it: mounts file-sd volume when fileSD enabled
+    documentIndex: 0
     set:
       fileSD:
         enabled: true
