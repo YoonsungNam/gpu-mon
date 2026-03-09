@@ -78,14 +78,13 @@ services:
   # ── ClickHouse ─────────────────────────────────────────────────────────────
   clickhouse:
     image: clickhouse/clickhouse-server:24.8
-    environment:
-      CLICKHOUSE_PASSWORD: ""          # passwordless default user (dev only)
     ports:
       - "8123:8123"   # HTTP
       - "9000:9000"   # Native
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - ./clickhouse-init:/docker-entrypoint-initdb.d:ro
+      - ./clickhouse-users.xml:/etc/clickhouse-server/users.d/default-password.xml:ro
       - ../schemas:/opt/gpu-mon/schemas:ro
     ulimits:
       nofile:

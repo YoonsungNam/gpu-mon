@@ -73,6 +73,6 @@ def test_vmagent_remote_write_queue():
     r = requests.get(f"{VMAGENT_URL}/metrics", timeout=5)
     assert r.status_code == 200
     # vmagent exposes vm_remotewrite_* metrics when remoteWrite is configured
-    assert "vm_remotewrite" in r.text, (
-        "Expected vm_remotewrite metrics — is remoteWrite configured?"
+    assert "vmagent_remotewrite" in r.text, (
+        "Expected vmagent_remotewrite metrics — is remoteWrite configured?"
     )
