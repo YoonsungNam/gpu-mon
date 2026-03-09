@@ -12,7 +12,7 @@ import pytest
 import requests
 import time
 
-from tests.conftest import VMINSERT_URL, VMSELECT_URL, poll_until
+from conftest import VMINSERT_URL, VMSELECT_URL, poll_until
 
 pytestmark = pytest.mark.component
 

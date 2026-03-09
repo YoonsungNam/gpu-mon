@@ -12,7 +12,7 @@ import time
 import pytest
 import requests
 
-from tests.conftest import (
+from conftest import (
     MOCK_DCGM_URL,
     VMINSERT_URL,
     VMSELECT_URL,

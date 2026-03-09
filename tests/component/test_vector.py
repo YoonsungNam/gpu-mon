@@ -11,7 +11,7 @@ import socket
 import pytest
 import requests
 
-from tests.conftest import VECTOR_URL
+from conftest import VECTOR_URL
 
 pytestmark = pytest.mark.component
 

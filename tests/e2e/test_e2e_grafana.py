@@ -11,7 +11,7 @@ This test runs after the metrics pipeline E2E (metrics must already be in VM).
 import pytest
 import requests
 
-from tests.conftest import GRAFANA_URL, poll_until
+from conftest import GRAFANA_URL, poll_until
 
 pytestmark = pytest.mark.e2e
 

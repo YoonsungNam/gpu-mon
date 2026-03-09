@@ -18,7 +18,7 @@ import time
 import pytest
 import requests
 
-from tests.conftest import CLICKHOUSE_URL, poll_until
+from conftest import CLICKHOUSE_URL, poll_until
 
 pytestmark = pytest.mark.e2e
 

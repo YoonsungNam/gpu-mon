@@ -12,7 +12,7 @@ import pytest
 import requests
 import time
 
-from tests.conftest import CLICKHOUSE_URL
+from conftest import CLICKHOUSE_URL
 
 pytestmark = pytest.mark.component
 
