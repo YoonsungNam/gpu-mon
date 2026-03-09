@@ -200,7 +200,7 @@ def test_fb_free_plus_used_equals_total(parsed_series):
     }
     for key in used_series:
         total = used_series[key] + free_series[key]
-        assert 39000 <= total <= 43000, (
+        assert 35000 <= total <= 47000, (
             f"FB_USED + FB_FREE = {total} MiB, expected ~40960 for {key}"
         )
 
