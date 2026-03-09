@@ -75,15 +75,13 @@ jobs:
       - name: Wait for ClickHouse schema to be ready
         run: |
           for i in $(seq 1 24); do
-            if curl -sf "http://localhost:8123/?query=EXISTS%20TABLE%20gpu_monitoring.gpu_unified_logs"; then
-              if [ "$(curl -sf "http://localhost:8123/?query=EXISTS%20TABLE%20gpu_monitoring.gpu_unified_logs")" = "1" ]; then
+            if [ "$(curl -sfG http://localhost:8123 --data-urlencode "query=SELECT count() FROM system.tables WHERE database='gpu_monitoring' AND name='gpu_unified_logs' FORMAT TabSeparatedRaw" | tr -d '\r\n')" = "1" ]; then
                 echo "ClickHouse schema ready"
                 break
-              fi
             fi
             sleep 5
           done
-          [ "$(curl -sf "http://localhost:8123/?query=EXISTS%20TABLE%20gpu_monitoring.gpu_unified_logs")" = "1" ] || (echo "ClickHouse schema not ready after 120s" && exit 1)
+          [ "$(curl -sfG http://localhost:8123 --data-urlencode "query=SELECT count() FROM system.tables WHERE database='gpu_monitoring' AND name='gpu_unified_logs' FORMAT TabSeparatedRaw" | tr -d '\r\n')" = "1" ] || (echo "ClickHouse schema not ready after 120s" && exit 1)
 
       - name: Wait for Grafana to be ready
         run: |
@@ -171,15 +169,13 @@ jobs:
       - name: Wait for ClickHouse schema to be ready
         run: |
           for i in $(seq 1 24); do
-            if curl -sf "http://localhost:8123/?query=EXISTS%20TABLE%20gpu_monitoring.gpu_unified_logs"; then
-              if [ "$(curl -sf "http://localhost:8123/?query=EXISTS%20TABLE%20gpu_monitoring.gpu_unified_logs")" = "1" ]; then
+            if [ "$(curl -sfG http://localhost:8123 --data-urlencode "query=SELECT count() FROM system.tables WHERE database='gpu_monitoring' AND name='gpu_unified_logs' FORMAT TabSeparatedRaw" | tr -d '\r\n')" = "1" ]; then
                 echo "ClickHouse schema ready"
                 break
-              fi
             fi
             sleep 5
           done
-          [ "$(curl -sf "http://localhost:8123/?query=EXISTS%20TABLE%20gpu_monitoring.gpu_unified_logs")" = "1" ] || (echo "ClickHouse schema not ready after 120s" && exit 1)
+          [ "$(curl -sfG http://localhost:8123 --data-urlencode "query=SELECT count() FROM system.tables WHERE database='gpu_monitoring' AND name='gpu_unified_logs' FORMAT TabSeparatedRaw" | tr -d '\r\n')" = "1" ] || (echo "ClickHouse schema not ready after 120s" && exit 1)
 
       - name: Wait for Grafana to be ready
         run: |
