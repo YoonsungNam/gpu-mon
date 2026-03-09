@@ -8,11 +8,9 @@ into the gpu_monitoring ClickHouse schema.
 import json
 import logging
 from datetime import datetime, timezone
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 import requests
-
-from .base import MetadataAdapter
 
 logger = logging.getLogger(__name__)
 

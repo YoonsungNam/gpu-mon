@@ -5,12 +5,13 @@ pyVmomi is mocked entirely so no vCenter connection is needed.
 Tests cover: normalize functions, _has_gpu logic, and import-guard behaviour.
 """
 
-import sys
-import os
 import json
+import os
+import sys
 import types
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # ── Inject mock pyVmomi before the adapter is imported ───────────────────────
 # This avoids requiring pyVmomi to be installed in the test environment.
@@ -44,9 +45,7 @@ from adapters.vmware_adapter import (
     VMwareAdapter,
     _has_gpu,
     _normalize_vm,
-    _extract_gpu_devices,
 )
-
 
 # ─── Helpers to build mock VM objects ────────────────────────────────────────
 

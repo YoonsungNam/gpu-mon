@@ -7,7 +7,7 @@ Thread-safe; called from multiple scheduler threads.
 
 import logging
 import threading
-from typing import List, Dict
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 

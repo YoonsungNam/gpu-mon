@@ -28,7 +28,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
-ignore = ["E501"]
+ignore = ["E501", "E402"]
 
 # ─── Test dependencies (pip install -e .[test]) ───────────────────────────────
 # Install with: pip install pytest pytest-timeout requests

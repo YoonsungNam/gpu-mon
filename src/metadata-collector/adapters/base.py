@@ -1,7 +1,7 @@
 """Base adapter interface for all metadata sources."""
 
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import Dict, List
 
 
 class MetadataAdapter(ABC):

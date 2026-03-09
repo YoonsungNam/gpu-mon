@@ -4,22 +4,23 @@ Unit tests for S2 adapter: normalize functions + collect methods.
 All HTTP calls are mocked — no real S2 API required.
 """
 
-import sys
-import os
 import json
-import pytest
-from datetime import datetime, timezone
+import os
+import sys
+from datetime import datetime
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from adapters.s2_adapter import (
+    S2Adapter,
     _normalize_job,
     _normalize_node,
-    _normalize_project,
     _normalize_pool,
+    _normalize_project,
     _parse_time,
-    S2Adapter,
 )
 
 # ─── _parse_time ─────────────────────────────────────────────────────────────

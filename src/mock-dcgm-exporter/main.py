@@ -14,12 +14,12 @@ Environment variables:
   SCRAPE_INTERVAL — Seconds between metric updates (default: 15)
 """
 
-import os
 import math
+import os
 import random
-import time
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 
