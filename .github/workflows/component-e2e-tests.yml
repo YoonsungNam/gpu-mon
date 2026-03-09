@@ -74,15 +74,14 @@ jobs:
 
       - name: Apply ClickHouse schema
         run: |
-          docker compose -f compose/docker-compose.yaml exec -T clickhouse \
-            ls /docker-entrypoint-initdb.d/
           cat compose/clickhouse-init/00-gpu-monitoring.sql | \
             docker compose -f compose/docker-compose.yaml exec -T clickhouse \
             clickhouse-client --multiquery
           echo "Schema applied, verifying..."
-          result=$(curl -sG http://localhost:8123 --data-urlencode \
-            "query=SELECT count() FROM system.tables WHERE database='gpu_monitoring' AND name='gpu_unified_logs' FORMAT TabSeparatedRaw" 2>&1 | tr -d '\r\n')
-          echo "gpu_unified_logs table count: '$result'"
+          result=$(docker compose -f compose/docker-compose.yaml exec -T clickhouse \
+            clickhouse-client -q \
+            "SELECT count() FROM system.tables WHERE database='gpu_monitoring' AND name='gpu_unified_logs' FORMAT TabSeparatedRaw" | tr -d '\r\n')
+          echo "gpu_unified_logs table count: $result"
           [ "$result" = "1" ] || (echo "Schema verification failed" && exit 1)
 
       - name: Wait for Grafana to be ready
@@ -170,15 +169,14 @@ jobs:
 
       - name: Apply ClickHouse schema
         run: |
-          docker compose -f compose/docker-compose.yaml exec -T clickhouse \
-            ls /docker-entrypoint-initdb.d/
           cat compose/clickhouse-init/00-gpu-monitoring.sql | \
             docker compose -f compose/docker-compose.yaml exec -T clickhouse \
             clickhouse-client --multiquery
           echo "Schema applied, verifying..."
-          result=$(curl -sG http://localhost:8123 --data-urlencode \
-            "query=SELECT count() FROM system.tables WHERE database='gpu_monitoring' AND name='gpu_unified_logs' FORMAT TabSeparatedRaw" 2>&1 | tr -d '\r\n')
-          echo "gpu_unified_logs table count: '$result'"
+          result=$(docker compose -f compose/docker-compose.yaml exec -T clickhouse \
+            clickhouse-client -q \
+            "SELECT count() FROM system.tables WHERE database='gpu_monitoring' AND name='gpu_unified_logs' FORMAT TabSeparatedRaw" | tr -d '\r\n')
+          echo "gpu_unified_logs table count: $result"
           [ "$result" = "1" ] || (echo "Schema verification failed" && exit 1)
 
       - name: Wait for Grafana to be ready
