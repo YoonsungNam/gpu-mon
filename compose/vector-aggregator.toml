@@ -6,9 +6,9 @@ address = "0.0.0.0:6000"
 type = "remap"
 inputs = ["vector_in"]
 source = '''
-  .log_level = upcase(string!(.level ?? "INFO"))
-  .source    = string!(.source ?? "system")
-  .metadata  = encode_json(.metadata ?? {})
+  .log_level = upcase(string(.level) ?? "INFO")
+  .source    = string(.source) ?? "system"
+  .metadata  = encode_json(object(.metadata) ?? {})
 '''
 
 [sinks.clickhouse]
