@@ -27,6 +27,7 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/metadata-collector
+          {{- if or .Values.existingSecrets.s2ApiToken .Values.existingSecrets.vcenterCredentials }}
           env:
             {{- if .Values.existingSecrets.s2ApiToken }}
             - name: S2_API_TOKEN
@@ -47,6 +48,9 @@ spec:
                   name: {{ .Values.existingSecrets.vcenterCredentials }}
                   key: password
             {{- end }}
+          {{- else }}
+          env: []
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /health
