@@ -1,0 +1,39 @@
+suite: metadata-collector configmap
+templates:
+  - templates/configmap.yaml
+
+tests:
+  - it: renders a ConfigMap
+    asserts:
+      - isKind:
+          of: ConfigMap
+
+  - it: has config.yaml in data
+    asserts:
+      - isNotNull:
+          path: data["config.yaml"]
+
+  - it: embeds clickhouse host in config.yaml
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "clickhouse\\.clickhouse\\.svc"
+
+  - it: reflects s2.enabled = false by default
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "enabled: false"
+
+  - it: reflects s2.enabled = true when overridden
+    set:
+      config:
+        sources:
+          s2:
+            enabled: true
+          vmware:
+            enabled: false
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: "enabled: true"
