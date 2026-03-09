@@ -75,7 +75,7 @@ jobs:
       - name: Apply ClickHouse schema
         run: |
           docker compose -f compose/docker-compose.yaml exec -T clickhouse \
-            clickhouse-client --queries-file /docker-entrypoint-initdb.d/00-gpu-monitoring.sql
+            bash -c "clickhouse-client --multiquery < /docker-entrypoint-initdb.d/00-gpu-monitoring.sql"
           echo "Schema applied, verifying..."
           result=$(curl -sfG http://localhost:8123 --data-urlencode \
             "query=SELECT count() FROM system.tables WHERE database='gpu_monitoring' AND name='gpu_unified_logs' FORMAT TabSeparatedRaw" | tr -d '\r\n')
@@ -168,7 +168,7 @@ jobs:
       - name: Apply ClickHouse schema
         run: |
           docker compose -f compose/docker-compose.yaml exec -T clickhouse \
-            clickhouse-client --queries-file /docker-entrypoint-initdb.d/00-gpu-monitoring.sql
+            bash -c "clickhouse-client --multiquery < /docker-entrypoint-initdb.d/00-gpu-monitoring.sql"
           echo "Schema applied, verifying..."
           result=$(curl -sfG http://localhost:8123 --data-urlencode \
             "query=SELECT count() FROM system.tables WHERE database='gpu_monitoring' AND name='gpu_unified_logs' FORMAT TabSeparatedRaw" | tr -d '\r\n')
