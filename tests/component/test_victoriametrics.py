@@ -8,9 +8,10 @@ Validates that the VictoriaMetrics cluster deployed via our Helm values
   - vmselect can query written data
 """
 
+import time
+
 import pytest
 import requests
-import time
 
 from tests.conftest import VMINSERT_URL, VMSELECT_URL, poll_until
 

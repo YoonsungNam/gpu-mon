@@ -8,7 +8,7 @@ scrape target is registered and actively scraped (health: up).
 import pytest
 import requests
 
-from tests.conftest import VMAGENT_URL, MOCK_DCGM_URL
+from tests.conftest import VMAGENT_URL
 
 pytestmark = pytest.mark.component
 

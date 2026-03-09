@@ -1,7 +1,6 @@
 suite: vmagent-central deployment
 templates:
   - templates/deployment.yaml
-  - templates/configmap.yaml
 
 tests:
   - it: renders a Deployment resource

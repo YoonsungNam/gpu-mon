@@ -8,9 +8,9 @@ Validates that ClickHouse is running with our schema applied:
   - INSERT and SELECT round-trip works per table
 """
 
+
 import pytest
 import requests
-import time
 
 from tests.conftest import CLICKHOUSE_URL
 

@@ -10,9 +10,9 @@ automatically skipped when the stack is not detected.
 """
 
 import time
+
 import pytest
 import requests
-
 
 # ─── Base URLs ───────────────────────────────────────────────────────────────
 

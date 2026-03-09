@@ -14,7 +14,6 @@ If you need to inject synthetic log events from a test Vector agent, add a
 `vector` sink type.
 """
 
-import time
 import pytest
 import requests
 

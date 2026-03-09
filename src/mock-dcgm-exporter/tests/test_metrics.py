@@ -9,8 +9,9 @@ Validates:
 """
 
 import os
-import sys
 import re
+import sys
+
 import pytest
 
 # Add src root to path so we can import main directly
@@ -191,12 +192,12 @@ def test_xid_errors_non_negative(parsed_series):
 def test_fb_free_plus_used_equals_total(parsed_series):
     """FB_USED + FB_FREE should be approximately 40960 MiB (A100 40GB)."""
     used_series = {
-        (l["node"], l["gpu"]): v
-        for l, v in parsed_series["DCGM_FI_DEV_FB_USED"]
+        (labels["node"], labels["gpu"]): value
+        for labels, value in parsed_series["DCGM_FI_DEV_FB_USED"]
     }
     free_series = {
-        (l["node"], l["gpu"]): v
-        for l, v in parsed_series["DCGM_FI_DEV_FB_FREE"]
+        (labels["node"], labels["gpu"]): value
+        for labels, value in parsed_series["DCGM_FI_DEV_FB_FREE"]
     }
     for key in used_series:
         total = used_series[key] + free_series[key]
