@@ -1,20 +1,24 @@
 suite: metadata-collector deployment
 templates:
   - templates/deployment.yaml
+  - templates/configmap.yaml
 
 tests:
   - it: renders a Deployment
+    template: templates/deployment.yaml
     asserts:
       - isKind:
           of: Deployment
 
   - it: exposes health port 8080
+    template: templates/deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.containers[0].ports[0].containerPort
           value: 8080
 
   - it: mounts config volume at /etc/metadata-collector
+    template: templates/deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
@@ -23,16 +27,16 @@ tests:
             mountPath: /etc/metadata-collector
 
   - it: does not inject S2 secret env when existingSecrets.s2ApiToken is empty
+    template: templates/deployment.yaml
     set:
       existingSecrets:
         s2ApiToken: ""
     asserts:
-      - notContains:
+      - isNullOrEmpty:
           path: spec.template.spec.containers[0].env
-          content:
-            name: S2_API_TOKEN
 
   - it: injects S2_API_TOKEN from secret when s2ApiToken is set
+    template: templates/deployment.yaml
     set:
       existingSecrets:
         s2ApiToken: my-s2-secret
@@ -47,6 +51,7 @@ tests:
                 key: token
 
   - it: injects VCENTER credentials when vcenterCredentials is set
+    template: templates/deployment.yaml
     set:
       existingSecrets:
         vcenterCredentials: my-vcenter-secret
@@ -69,6 +74,7 @@ tests:
                 key: password
 
   - it: has liveness probe on /health
+    template: templates/deployment.yaml
     asserts:
       - equal:
           path: spec.template.spec.containers[0].livenessProbe.httpGet.path
