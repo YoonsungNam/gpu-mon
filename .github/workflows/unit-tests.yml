@@ -28,7 +28,7 @@ jobs:
         run: pip install -e ".[test]"
 
       - name: Run unit tests
-        run: pytest -m unit -v --tb=short
+        run: pytest -m unit -v --tb=short --ignore=src/mock-dcgm-exporter
 
   mock-dcgm-unit:
     name: mock-dcgm-exporter unit tests
