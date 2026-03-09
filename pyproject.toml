@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 # ─── pytest ──────────────────────────────────────────────────────────────────
 
 [tool.pytest.ini_options]
+import_mode = "importlib"
 testpaths = ["src", "tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
