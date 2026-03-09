@@ -32,10 +32,8 @@ tests:
       existingSecrets:
         s2ApiToken: ""
     asserts:
-      - notContains:
+      - isNullOrEmpty:
           path: spec.template.spec.containers[0].env
-          content:
-            name: S2_API_TOKEN
 
   - it: injects S2_API_TOKEN from secret when s2ApiToken is set
     template: templates/deployment.yaml
