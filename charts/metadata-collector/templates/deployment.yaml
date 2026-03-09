@@ -15,7 +15,7 @@ spec:
       labels:
         {{- include "metadata-collector.selectorLabels" . | nindent 8 }}
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/config: {{ include "metadata-collector.config" . | sha256sum }}
     spec:
       containers:
         - name: metadata-collector

@@ -83,7 +83,7 @@ services:
       - "9000:9000"   # Native
     volumes:
       - clickhouse-data:/var/lib/clickhouse
-      - ../schemas:/docker-entrypoint-initdb.d:ro
+      - ./clickhouse-init:/docker-entrypoint-initdb.d:ro
     ulimits:
       nofile:
         soft: 262144
