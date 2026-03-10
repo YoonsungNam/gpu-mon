@@ -39,10 +39,10 @@ releases:
   - name: victoriametrics
     namespace: monitoring
     {{ if eq .Environment.Name "corp" }}
-    chart: "{{ .Values.charts_dir }}/victoria-metrics-cluster-0.14.17.tgz"
+    chart: "{{ .Values.charts_dir }}/victoria-metrics-cluster-0.36.0.tgz"
     {{ else }}
     chart: victoriametrics/victoria-metrics-cluster
-    version: "0.14.17"
+    version: "0.36.0"
     {{ end }}
     values:
       - environments/{{ .Environment.Name }}/victoriametrics.yaml
@@ -58,10 +58,10 @@ releases:
   - name: clickhouse-operator
     namespace: clickhouse
     {{ if eq .Environment.Name "corp" }}
-    chart: "{{ .Values.charts_dir }}/altinity-clickhouse-operator-0.24.0.tgz"
+    chart: "{{ .Values.charts_dir }}/altinity-clickhouse-operator-0.26.0.tgz"
     {{ else }}
     chart: clickhouse-operator/altinity-clickhouse-operator
-    version: "0.24.0"
+    version: "0.26.0"
     {{ end }}
 
   # ─── ClickHouse Cluster ───────────────────────────────────────────────────
@@ -77,10 +77,10 @@ releases:
   - name: grafana
     namespace: monitoring
     {{ if eq .Environment.Name "corp" }}
-    chart: "{{ .Values.charts_dir }}/grafana-8.8.2.tgz"
+    chart: "{{ .Values.charts_dir }}/grafana-10.5.15.tgz"
     {{ else }}
     chart: grafana/grafana
-    version: "8.8.2"
+    version: "10.5.15"
     {{ end }}
     values:
       - environments/{{ .Environment.Name }}/grafana.yaml
@@ -89,10 +89,10 @@ releases:
   - name: vector
     namespace: monitoring
     {{ if eq .Environment.Name "corp" }}
-    chart: "{{ .Values.charts_dir }}/vector-0.36.1.tgz"
+    chart: "{{ .Values.charts_dir }}/vector-0.50.0.tgz"
     {{ else }}
     chart: vector/vector
-    version: "0.36.1"
+    version: "0.50.0"
     {{ end }}
     values:
       - environments/{{ .Environment.Name }}/vector.yaml
