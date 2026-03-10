@@ -6,9 +6,8 @@ Validates that Grafana is healthy and our provisioned datasources
 """
 
 import pytest
-import requests
 
-from tests.conftest import GRAFANA_URL, VMSELECT_URL, CLICKHOUSE_URL
+from tests.conftest import GRAFANA_URL
 
 pytestmark = pytest.mark.component
 

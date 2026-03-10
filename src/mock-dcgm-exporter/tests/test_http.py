@@ -7,16 +7,17 @@ and validates response codes, headers, and body format.
 
 import os
 import sys
-import time
 import threading
-import urllib.request
 import urllib.error
+import urllib.request
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import main as exporter
 from http.server import HTTPServer
+
+import main as exporter
 
 
 @pytest.fixture(scope="module")

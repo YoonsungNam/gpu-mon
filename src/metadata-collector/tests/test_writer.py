@@ -6,11 +6,12 @@ Tests cover: buffer accumulation, auto-flush on batch_size, flush(),
 retry-on-failure (data re-buffered), and per-table isolation.
 """
 
-import sys
 import os
+import sys
 import types
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, call
 
 # ── Mock clickhouse_driver before import ─────────────────────────────────────
 _ch_mock = types.ModuleType("clickhouse_driver")
@@ -19,8 +20,7 @@ sys.modules.setdefault("clickhouse_driver", _ch_mock)
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from writer.clickhouse_writer import ClickHouseWriter
-
+from writer.clickhouse_writer import ClickHouseWriter  # noqa: E402
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
 

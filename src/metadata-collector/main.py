@@ -10,17 +10,17 @@ Config: /etc/metadata-collector/config.yaml
         or MC_CONFIG_PATH env var
 """
 
-import os
-import sys
 import logging
+import os
 import signal
-import yaml
+import sys
 
-from scheduler import CollectorScheduler
-from writer.clickhouse_writer import ClickHouseWriter
+import yaml
 from adapters.s2_adapter import S2Adapter
 from adapters.vmware_adapter import VMwareAdapter
 from health import HealthServer
+from scheduler import CollectorScheduler
+from writer.clickhouse_writer import ClickHouseWriter
 
 logger = logging.getLogger(__name__)
 

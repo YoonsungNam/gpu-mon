@@ -8,8 +8,8 @@ datasources:
 
   - name: ClickHouse
     type: grafana-clickhouse-datasource
-    url: http://clickhouse:8123
     jsonData:
       host: clickhouse
       port: 8123
+      protocol: http
       defaultDatabase: gpu_monitoring

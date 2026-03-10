@@ -8,9 +8,9 @@ Validates that ClickHouse is running with our schema applied:
   - INSERT and SELECT round-trip works per table
 """
 
+
 import pytest
 import requests
-import time
 
 from tests.conftest import CLICKHOUSE_URL
 
@@ -136,14 +136,13 @@ def test_table_columns(table, columns):
 # ─── INSERT / SELECT round-trip per table ────────────────────────────────────
 
 def test_insert_and_select_gpu_unified_logs():
-    ts = "2025-01-01 00:00:00.000"
     requests.post(
         CLICKHOUSE_URL,
         params={
             "query": (
                 "INSERT INTO gpu_monitoring.gpu_unified_logs "
                 "(timestamp, env, cluster_id, node_id, log_level, source, message, metadata) "
-                f"VALUES ('{ts}', 'test', 'test-cluster', 'test-node', 'INFO', 'system', 'test log', '{{}}')"
+                "VALUES (now(), 'test', 'test-cluster', 'test-node', 'INFO', 'system', 'test log', '{}')"
             )
         },
         timeout=5,

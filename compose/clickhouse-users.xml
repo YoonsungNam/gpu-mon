@@ -1,0 +1,8 @@
+<!-- Override default user: passwordless access for dev compose stack. -->
+<clickhouse>
+    <users>
+        <default>
+            <password></password>
+        </default>
+    </users>
+</clickhouse>

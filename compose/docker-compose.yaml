@@ -47,7 +47,7 @@ services:
 
   # ── VictoriaMetrics Cluster ────────────────────────────────────────────────
   vmstorage:
-    image: victoriametrics/vmstorage:v1.106.1
+    image: victoriametrics/vmstorage:v1.106.1-cluster
     command:
       - "-storageDataPath=/vmstorage-data"
       - "-retentionPeriod=7d"
@@ -56,7 +56,7 @@ services:
     logging: *default-logging
 
   vminsert:
-    image: victoriametrics/vminsert:v1.106.1
+    image: victoriametrics/vminsert:v1.106.1-cluster
     command:
       - "-storageNode=vmstorage:8400"
     ports:
@@ -66,7 +66,7 @@ services:
     logging: *default-logging
 
   vmselect:
-    image: victoriametrics/vmselect:v1.106.1
+    image: victoriametrics/vmselect:v1.106.1-cluster
     command:
       - "-storageNode=vmstorage:8401"
     ports:
@@ -83,7 +83,9 @@ services:
       - "9000:9000"   # Native
     volumes:
       - clickhouse-data:/var/lib/clickhouse
-      - ../schemas:/docker-entrypoint-initdb.d:ro
+      - ./clickhouse-init:/docker-entrypoint-initdb.d:ro
+      - ./clickhouse-users.xml:/etc/clickhouse-server/users.d/default-password.xml:ro
+      - ../schemas:/opt/gpu-mon/schemas:ro
     ulimits:
       nofile:
         soft: 262144
@@ -108,6 +110,7 @@ services:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_INSTALL_PLUGINS: "grafana-clickhouse-datasource"
     ports:
       - "3000:3000"
     volumes:

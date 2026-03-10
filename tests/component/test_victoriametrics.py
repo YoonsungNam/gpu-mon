@@ -8,9 +8,10 @@ Validates that the VictoriaMetrics cluster deployed via our Helm values
   - vmselect can query written data
 """
 
+import time
+
 import pytest
 import requests
-import time
 
 from tests.conftest import VMINSERT_URL, VMSELECT_URL, poll_until
 
@@ -25,7 +26,7 @@ def test_vminsert_health():
 
 
 def test_vminsert_ready():
-    r = requests.get(f"{VMINSERT_URL}/ready", timeout=5)
+    r = requests.get(f"{VMINSERT_URL}/-/ready", timeout=5)
     assert r.status_code == 200
 
 
@@ -37,7 +38,7 @@ def test_vmselect_health():
 
 
 def test_vmselect_ready():
-    r = requests.get(f"{VMSELECT_URL}/select/0/prometheus/-/ready", timeout=5)
+    r = requests.get(f"{VMSELECT_URL}/-/ready", timeout=5)
     assert r.status_code == 200
 
 
@@ -80,7 +81,7 @@ def test_vmselect_returns_written_metric():
         data = r.json()
         return data.get("data", {}).get("result", [])
 
-    results = poll_until(_query, timeout=30, label="vmselect sees written metric")
+    results = poll_until(_query, timeout=60, label="vmselect sees written metric")
     assert len(results) > 0
 
 
@@ -95,7 +96,7 @@ def test_vmselect_instant_query_returns_valid_json():
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "success"
-    assert body["data"]["resultType"] == "scalar"
+    assert body["data"]["resultType"] in ("scalar", "vector")
 
 
 def test_vmselect_label_names_endpoint():

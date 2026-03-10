@@ -10,6 +10,7 @@ help: ## Show this help
 # ─── macbook (Docker Compose) ────────────────────────────────────────────────
 
 dev-up: ## Start full stack locally (macbook env, Docker Compose)
+	./scripts/render-compose-clickhouse-schema.sh
 	docker compose -f compose/docker-compose.yaml up -d
 
 dev-down: ## Stop local stack

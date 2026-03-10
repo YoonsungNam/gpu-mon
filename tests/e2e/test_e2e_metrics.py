@@ -8,15 +8,12 @@ Verifies the full data path:
 Uses poll_until (max 60 s) to account for scrape-interval lag (15 s by default).
 """
 
-import time
 import pytest
 import requests
 
 from tests.conftest import (
     MOCK_DCGM_URL,
-    VMINSERT_URL,
     VMSELECT_URL,
-    VMAGENT_URL,
     poll_until,
 )
 

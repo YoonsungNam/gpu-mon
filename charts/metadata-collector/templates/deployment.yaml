@@ -15,7 +15,7 @@ spec:
       labels:
         {{- include "metadata-collector.selectorLabels" . | nindent 8 }}
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/config: {{ include "metadata-collector.config" . | sha256sum }}
     spec:
       containers:
         - name: metadata-collector
@@ -27,6 +27,7 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/metadata-collector
+          {{- if or .Values.existingSecrets.s2ApiToken .Values.existingSecrets.vcenterCredentials }}
           env:
             {{- if .Values.existingSecrets.s2ApiToken }}
             - name: S2_API_TOKEN
@@ -47,6 +48,9 @@ spec:
                   name: {{ .Values.existingSecrets.vcenterCredentials }}
                   key: password
             {{- end }}
+          {{- else }}
+          env: []
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /health

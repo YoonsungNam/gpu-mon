@@ -8,10 +8,9 @@ deep payload testing is deferred to the E2E log pipeline test.
 """
 
 import socket
+
 import pytest
 import requests
-
-from tests.conftest import VECTOR_URL
 
 pytestmark = pytest.mark.component
 

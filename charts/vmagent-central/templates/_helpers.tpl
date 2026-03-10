@@ -19,3 +19,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/name: {{ include "vmagent-central.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{- define "vmagent-central.config" -}}
+{{- toYaml .Values.scrapeConfig -}}
+{{- end }}

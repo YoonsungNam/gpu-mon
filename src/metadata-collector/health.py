@@ -1,7 +1,7 @@
 """Minimal HTTP health endpoint for K8s liveness/readiness probes."""
 
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 class _Handler(BaseHTTPRequestHandler):
