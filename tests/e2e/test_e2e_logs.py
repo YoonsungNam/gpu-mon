@@ -61,7 +61,7 @@ def test_gpu_unified_logs_schema():
         f"ORDER BY name"
     )
     columns = result.splitlines()
-    for required in ("ts", "log_level", "source", "message", "metadata"):
+    for required in ("timestamp", "log_level", "source", "message", "metadata"):
         assert required in columns, (
             f"Column '{required}' missing from {_TABLE}. Found: {columns}"
         )
