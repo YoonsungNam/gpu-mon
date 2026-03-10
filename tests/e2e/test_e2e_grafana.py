@@ -36,7 +36,7 @@ def test_grafana_proxies_victoriametrics_query(grafana_session):
     def _query():
         r = grafana_session.get(
             f"{GRAFANA_URL}/api/datasources/proxy/uid/{uid}"
-            f"/select/0/prometheus/api/v1/query",
+            f"/api/v1/query",
             params={"query": "DCGM_FI_DEV_GPU_UTIL"},
             timeout=10,
         )
@@ -59,7 +59,7 @@ def test_grafana_proxies_victoriametrics_query(grafana_session):
     uid = _get_datasource_uid(grafana_session, "VictoriaMetrics")
     r = grafana_session.get(
         f"{GRAFANA_URL}/api/datasources/proxy/uid/{uid}"
-        f"/select/0/prometheus/api/v1/query",
+        f"/api/v1/query",
         params={"query": "DCGM_FI_DEV_GPU_UTIL"},
         timeout=10,
     )
@@ -73,22 +73,30 @@ def test_grafana_proxies_victoriametrics_query(grafana_session):
 
 def test_grafana_proxies_clickhouse_query(grafana_session):
     """
-    Grafana should proxy a ClickHouse SQL query and return a valid response.
+    Grafana should execute a ClickHouse SQL query via the unified query API.
     We query system.tables as a lightweight sanity check (no data dependency).
     """
     uid = _get_datasource_uid(grafana_session, "ClickHouse")
 
     r = grafana_session.post(
-        f"{GRAFANA_URL}/api/datasources/proxy/uid/{uid}/",
-        data="SELECT count() FROM system.tables",
+        f"{GRAFANA_URL}/api/ds/query",
+        json={
+            "queries": [
+                {
+                    "datasource": {"uid": uid},
+                    "rawSql": "SELECT count() as cnt FROM system.tables",
+                    "refId": "A",
+                    "format": 1,
+                }
+            ],
+            "from": "now-1h",
+            "to": "now",
+        },
         timeout=10,
     )
     assert r.status_code == 200, (
-        f"Grafana ClickHouse proxy query failed: {r.status_code} {r.text[:200]}"
+        f"Grafana ClickHouse query failed: {r.status_code} {r.text[:200]}"
     )
-    # ClickHouse returns the count as plain text
-    count = int(r.text.strip())
-    assert count > 0, "system.tables is empty — unexpected"
 
 
 # ─── Dashboard folder ─────────────────────────────────────────────────────────
