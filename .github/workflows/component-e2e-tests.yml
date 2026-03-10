@@ -3,6 +3,8 @@
 # Split by intent:
 #   - Component: service-level smoke tests in the composed dev stack
 #   - E2E: full pipeline verification across the stack
+#
+# Skips with success on docs-only changes to avoid blocking PRs.
 
 name: Docker Integration Tests
 
@@ -14,9 +16,36 @@ on:
   workflow_dispatch:
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      runtime: ${{ steps.filter.outputs.runtime }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            runtime:
+              - 'src/**'
+              - 'charts/**'
+              - 'compose/**'
+              - 'schemas/**'
+              - 'environments/**'
+              - 'tests/**'
+              - 'scripts/**'
+              - 'helmfile.yaml.gotmpl'
+              - 'pyproject.toml'
+              - 'Makefile'
+              - '.github/workflows/component-e2e-tests.yml'
+
   component:
     name: Component Tests
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
     timeout-minutes: 20
 
     steps:
@@ -108,11 +137,20 @@ jobs:
         if: always()
         run: make dev-down
 
+  component-skip:
+    name: Component Tests
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.runtime != 'true'
+    steps:
+      - run: echo "Skipped — docs-only change"
+
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
+    needs: [changes, component]
+    if: needs.changes.outputs.runtime == 'true'
     timeout-minutes: 20
-    needs: component
 
     steps:
       - uses: actions/checkout@v4
@@ -202,3 +240,11 @@ jobs:
       - name: Tear down Docker Compose stack
         if: always()
         run: make dev-down
+
+  e2e-skip:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.runtime != 'true'
+    steps:
+      - run: echo "Skipped — docs-only change"
