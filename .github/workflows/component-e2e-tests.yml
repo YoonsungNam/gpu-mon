@@ -36,7 +36,7 @@ jobs:
               - 'environments/**'
               - 'tests/**'
               - 'scripts/**'
-              - 'helmfile.yaml.gotmpl'
+              - 'helmfile.yaml'
               - 'pyproject.toml'
               - 'Makefile'
               - '.github/workflows/component-e2e-tests.yml'
