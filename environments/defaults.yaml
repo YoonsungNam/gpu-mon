@@ -22,7 +22,7 @@ vminsert_url: "http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prom
 
 # ClickHouse connection
 clickhouse:
-  host: clickhouse.clickhouse.svc
+  host: clickhouse-gpu-monitoring.clickhouse.svc
   port: 9000
   database: gpu_monitoring
   username: default

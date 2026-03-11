@@ -14,9 +14,9 @@ datasources:
 
       - name: ClickHouse
         type: grafana-clickhouse-datasource
-        url: http://clickhouse.clickhouse.svc:8123
+        url: http://clickhouse-gpu-monitoring.clickhouse.svc:8123
         jsonData:
-          host: clickhouse.clickhouse.svc
+          host: clickhouse-gpu-monitoring.clickhouse.svc
           port: 8123
           defaultDatabase: gpu_monitoring
 

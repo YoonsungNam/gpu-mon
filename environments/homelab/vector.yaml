@@ -25,7 +25,7 @@ customConfig:
     clickhouse_logs:
       type: clickhouse
       inputs: ["standardize"]
-      endpoint: "http://clickhouse.clickhouse.svc:8123"
+      endpoint: "http://clickhouse-gpu-monitoring.clickhouse.svc:8123"
       database: gpu_monitoring
       table: gpu_unified_logs
       compression: gzip
