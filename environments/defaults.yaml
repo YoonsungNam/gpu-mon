@@ -21,6 +21,7 @@ namespace: monitoring
 vminsert_url: "http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prometheus/"
 
 # ClickHouse connection
+# Host follows Altinity CHI operator naming: clickhouse-{chi-name}.{namespace}.svc
 clickhouse:
   host: clickhouse-gpu-monitoring.clickhouse.svc
   port: 9000
