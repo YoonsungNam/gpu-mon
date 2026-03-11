@@ -48,7 +48,7 @@ GPU Nodes (Baremetal/K8s/VM)          Central (K8s)                Storage
 
 ```
 gpu-mon/
-├── helmfile.yaml              # Multi-environment orchestration
+├── helmfile.yaml.gotmpl       # Multi-environment orchestration (Helmfile v1)
 ├── environments/
 │   ├── defaults.yaml          # Shared base values
 │   ├── macbook/               # Docker Compose (no K8s)

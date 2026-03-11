@@ -279,7 +279,7 @@ cd ~/work/gpu-mon
 helmfile -e corp list
 
 # 에러: "environment corp is not defined"
-# → helmfile.yaml에 corp 환경 정의 확인
+# → helmfile.yaml.gotmpl에 corp 환경 정의 확인
 # → environments/corp/values.yaml 존재 확인
 ```
 

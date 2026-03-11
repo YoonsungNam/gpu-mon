@@ -22,7 +22,7 @@ Use this file when reviewing or changing code in this repo with Codex.
 4. Keep environment boundaries explicit. Shared defaults belong in `environments/defaults.yaml`; environment-specific overrides belong only under `environments/<env>/`.
 5. Treat observability contracts as APIs. Metric names, labels, ports, scrape paths, log formats, schema fields, and dashboard inputs must remain stable unless intentionally versioned.
 6. Require test impact analysis. Any change to Python logic, chart templating, scrape configs, log routing, or deployment automation should state what level of testing covers it.
-7. Favor minimal blast radius. Prefer targeted changes over wide refactors, especially around deployment entrypoints such as `helmfile.yaml`, `compose/`, `scripts/`, and `ansible/`.
+7. Favor minimal blast radius. Prefer targeted changes over wide refactors, especially around deployment entrypoints such as `helmfile.yaml.gotmpl`, `compose/`, `scripts/`, and `ansible/`.
 8. Verify operational failure modes. Check startup behavior, retries, missing env vars, empty inventories, unreachable endpoints, and partial deployments.
 9. Keep docs aligned with executable paths. If a PR changes commands, file locations, or deployment flow, review the corresponding documentation in the same pass.
 10. Call out what is unverified. If tests were not run or cannot run in the current environment, say so explicitly.
@@ -34,7 +34,7 @@ Use this file when reviewing or changing code in this repo with Codex.
   - New or modified repository content remains English-only, unless a tracked baseline exception is being intentionally removed
   - No copied OSS charts
   - No production or corporate-only configuration
-- Helm and Helmfile changes maintain valid value flow across `helmfile.yaml`, `environments/`, and `charts/`.
+- Helm and Helmfile changes maintain valid value flow across `helmfile.yaml.gotmpl`, `environments/`, and `charts/`.
 - Ansible changes keep idempotent behavior and do not hardcode host-specific state.
 - Python service changes preserve adapter boundaries, configuration loading, and failure handling.
 - Schema or telemetry changes document downstream impact on dashboards, alerts, and queries.
@@ -44,7 +44,7 @@ Use this file when reviewing or changing code in this repo with Codex.
 ## Conditional Test Gate
 
 - Treat test execution as conditionally required, not optional, when runtime behavior can change.
-- Run and report relevant checks for changes in `src/`, `helmfile.yaml`, `charts/`, `environments/`, `ansible/`, `scripts/`, `compose/`, and `schemas/`.
+- Run and report relevant checks for changes in `src/`, `helmfile.yaml.gotmpl`, `charts/`, `environments/`, `ansible/`, `scripts/`, `compose/`, and `schemas/`.
 - For docs-only, comments-only, or metadata-only changes with no runtime impact, tests may be skipped with an explicit rationale.
 - If a required check fails, raise a finding with severity based on impact and include the failing command/output summary.
 - If a required check cannot run in the current environment, mark it as unverified, include the blocking reason, and describe deployment risk.
