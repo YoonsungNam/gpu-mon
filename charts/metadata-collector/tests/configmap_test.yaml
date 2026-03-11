@@ -17,7 +17,7 @@ tests:
     asserts:
       - matchRegex:
           path: data["config.yaml"]
-          pattern: "clickhouse\\.clickhouse\\.svc"
+          pattern: "clickhouse-gpu-monitoring\\.clickhouse\\.svc"
 
   - it: reflects s2.enabled = false by default
     asserts:
