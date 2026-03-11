@@ -4,7 +4,7 @@
 
 ## Deployment Layers Touched
 - [ ] Docker Compose (`compose/`)
-- [ ] Helmfile / environments (`helmfile.yaml`, `environments/`)
+- [ ] Helmfile / environments (`helmfile.yaml.gotmpl`, `environments/`)
 - [ ] Helm charts (`charts/`)
 - [ ] Ansible (`ansible/`)
 - [ ] Python services (`src/`)

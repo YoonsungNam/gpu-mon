@@ -17,9 +17,9 @@ customConfig:
       inputs: ["vector_agent_in"]
       source: |
         # Normalize to gpu_unified_logs schema
-        .log_level = upcase(string!(.level ?? "INFO"))
-        .source    = string!(.source ?? "system")
-        .metadata  = encode_json(.metadata ?? {})
+        .log_level = upcase(.level) ?? "INFO"
+        .source    = string(.source) ?? "system"
+        .metadata  = encode_json(.metadata)
 
   sinks:
     clickhouse_logs:
