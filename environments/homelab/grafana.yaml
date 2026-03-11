@@ -32,9 +32,6 @@ dashboardProviders:
         options:
           path: /var/lib/grafana/dashboards/gpu-mon
 
-dashboardsConfigMaps:
-  gpu-mon: grafana-dashboards
-
 plugins:
   - grafana-clickhouse-datasource
 
