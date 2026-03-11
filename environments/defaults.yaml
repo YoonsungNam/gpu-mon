@@ -22,6 +22,8 @@ vminsert_url: "http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prom
 
 # ClickHouse connection
 # Host follows Altinity CHI operator naming: clickhouse-{chi-name}.{namespace}.svc
+# Must match clickhouse.cluster.name in the environment's clickhouse.yaml
+# (default chi-name: gpu-monitoring → service: clickhouse-gpu-monitoring)
 clickhouse:
   host: clickhouse-gpu-monitoring.clickhouse.svc
   port: 9000
