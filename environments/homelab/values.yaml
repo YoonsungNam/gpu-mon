@@ -5,7 +5,7 @@
 # No metadata collector (no S2 / VMware in homelab).
 
 image_registry: ghcr.io/yoonsungnam/gpu-mon
-image_tag: latest
+image_tag: dev
 
 mock_dcgm:
   enabled: true

@@ -27,5 +27,5 @@ jobs:
         with:
           package-name: gpu-mon/${{ matrix.image }}
           package-type: container
-          min-versions-to-keep: 7
+          min-versions-to-keep: 5
           ignore-versions: "^(latest|dev|main)$"
