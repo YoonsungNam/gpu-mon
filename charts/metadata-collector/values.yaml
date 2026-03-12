@@ -11,7 +11,7 @@ config:
   healthPort: 8080
 
   clickhouse:
-    host: clickhouse.clickhouse.svc
+    host: clickhouse-gpu-monitoring.clickhouse.svc
     port: 9000
     database: gpu_monitoring
     username: metadata_writer
