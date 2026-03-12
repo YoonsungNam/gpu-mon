@@ -1,0 +1,31 @@
+---
+# Delete old container image versions from GHCR.
+# Keeps the 5 most recent immutable (<branch>-<sha>) tags per image.
+# Runs weekly on Sunday 00:00 UTC, or manually via workflow_dispatch.
+
+name: Cleanup GHCR Images
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    name: Prune ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        image:
+          - mock-dcgm-exporter
+          - metadata-collector
+    steps:
+      - name: Delete old image versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: gpu-mon/${{ matrix.image }}
+          package-type: container
+          min-versions-to-keep: 7
+          ignore-versions: "^(latest|dev|main)$"

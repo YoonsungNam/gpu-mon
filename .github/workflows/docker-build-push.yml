@@ -67,15 +67,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate tags
+        if: matrix.changed == 'true'
+        id: tags
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ needs.changes.outputs.image_prefix }}/${{ matrix.image }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAGS="${IMAGE}:${BRANCH}-${SHORT_SHA}"
+          TAGS="${TAGS},${IMAGE}:${BRANCH}"
+          # :latest only moves on main push
+          if [ "$BRANCH" = "main" ]; then
+            TAGS="${TAGS},${IMAGE}:latest"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         if: matrix.changed == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ needs.changes.outputs.image_prefix }}/${{ matrix.image }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ needs.changes.outputs.image_prefix }}/${{ matrix.image }}:${{ github.ref_name }}
-            ${{ env.REGISTRY }}/${{ needs.changes.outputs.image_prefix }}/${{ matrix.image }}:latest
-          # latest tracks the most recent build from either branch;
-          # use the branch tag (dev/main) for branch-specific pinning.
+          tags: ${{ steps.tags.outputs.tags }}
