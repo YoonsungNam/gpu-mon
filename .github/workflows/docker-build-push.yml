@@ -14,7 +14,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository }}
 
 jobs:
   changes:
@@ -23,8 +22,12 @@ jobs:
     outputs:
       mock-dcgm-exporter: ${{ steps.filter.outputs.mock-dcgm-exporter }}
       metadata-collector: ${{ steps.filter.outputs.metadata-collector }}
+      image_prefix: ${{ steps.repo.outputs.lowercase }}
     steps:
       - uses: actions/checkout@v4
+      - name: Lowercase repo name
+        id: repo
+        run: echo "lowercase=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -71,8 +74,8 @@ jobs:
           context: ${{ matrix.context }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ github.ref_name }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
+            ${{ env.REGISTRY }}/${{ needs.changes.outputs.image_prefix }}/${{ matrix.image }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ needs.changes.outputs.image_prefix }}/${{ matrix.image }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ needs.changes.outputs.image_prefix }}/${{ matrix.image }}:latest
           # latest tracks the most recent build from either branch;
           # use the branch tag (dev/main) for branch-specific pinning.
