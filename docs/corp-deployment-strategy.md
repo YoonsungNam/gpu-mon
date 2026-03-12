@@ -34,7 +34,7 @@ and can be adopted incrementally.
 
 ### Phase 1: Script-based Sync + Helmfile Deploy (start here)
 
-**Prerequisite**: Docker CLI on WSL, authenticated to both GHCR and corp registry.
+**Prerequisite**: Docker CLI + `yq` on WSL, authenticated to both GHCR and corp registry.
 
 ```
  WSL
@@ -152,14 +152,34 @@ tools:
   helmfile: "v0.169.2"
 ```
 
+### Image Path Strategy
+
+Images must be pushed to the corp registry **preserving the original path structure**.
+This is critical for RKE2 registry mirror compatibility (Phase 3), but we enforce it
+from Phase 1 for consistency.
+
+| Source | Corp Registry Path | Why |
+|---|---|---|
+| `victoriametrics/vmagent:v1.106.1` | `registry.corp.internal/victoriametrics/vmagent:v1.106.1` | Preserves upstream path |
+| `ghcr.io/yoonsungnam/gpu-mon/mock-dcgm-exporter:v1.0.0` | `registry.corp.internal/yoonsungnam/gpu-mon/mock-dcgm-exporter:v1.0.0` | Preserves GHCR path |
+| `registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.14.0` | `registry.corp.internal/kube-state-metrics/kube-state-metrics:v2.14.0` | Preserves upstream path |
+
+With this convention:
+- **Phase 1-2**: Corp `values.yaml` sets `image_registry: registry.corp.internal/yoonsungnam/gpu-mon`
+  and charts resolve images correctly
+- **Phase 3**: RKE2 registry mirrors redirect `ghcr.io` → `registry.corp.internal` transparently,
+  so charts can use upstream image refs without rewriting
+
 ### corp-sync-images.sh — Image Sync Script
 
-Reads `versions.yaml`, pulls from public registries, re-tags, pushes to corp registry.
+Reads `versions.yaml`, pulls from public registries, pushes to corp registry
+**preserving the original image path**.
 
 ```bash
 #!/bin/bash
 # Sync all container images to corp internal registry.
 # Usage: ./scripts/corp-sync-images.sh <registry.corp.internal>
+# Requires: docker, yq
 set -euo pipefail
 
 DEST="${1:?Usage: ./scripts/corp-sync-images.sh <registry.corp.internal>}"
@@ -168,7 +188,7 @@ VERSIONS_FILE="versions.yaml"
 
 echo "=== Syncing images to ${DEST} ==="
 
-# Sync OSS images
+# Sync OSS images (preserve original path: docker.io/victoriametrics/... → DEST/victoriametrics/...)
 while IFS=': ' read -r image tag; do
     [[ -z "$image" ]] && continue
     echo "  ${image}:${tag}"
@@ -177,11 +197,12 @@ while IFS=': ' read -r image tag; do
     docker push "${DEST}/${image}:${tag}"
 done < <(yq '.oss_images | to_entries | .[] | .key + ": " + .value' "${VERSIONS_FILE}")
 
-# Sync custom images
+# Sync custom images (preserve GHCR path: ghcr.io/yoonsungnam/gpu-mon/... → DEST/yoonsungnam/gpu-mon/...)
 while IFS=': ' read -r image tag; do
     [[ -z "$image" ]] && continue
     src="${SRC_REGISTRY}/${image}:${tag}"
-    dst="${DEST}/gpu-mon/${image}:${tag}"
+    # Strip the registry host, keep the full path (yoonsungnam/gpu-mon/<image>)
+    dst="${DEST}/${SRC_REGISTRY#*/}/${image}:${tag}"
     echo "  ${src} → ${dst}"
     docker pull "${src}"
     docker tag  "${src}" "${dst}"
@@ -624,9 +645,17 @@ configs:
       ca_file: /etc/pki/ca-trust/source/anchors/corp-ca.crt
 ```
 
-With registry mirrors configured, Helm charts can reference upstream image names
-(e.g., `victoriametrics/vmagent:v1.106.1`) and RKE2 transparently redirects
-pulls to the corp registry. No image reference rewriting needed in chart values.
+With registry mirrors configured, RKE2 transparently rewrites the registry host
+while **preserving the image path**. For example:
+
+```
+Chart references:           ghcr.io/yoonsungnam/gpu-mon/mock-dcgm-exporter:v1.0.0
+Mirror rewrites to:         registry.corp.internal/yoonsungnam/gpu-mon/mock-dcgm-exporter:v1.0.0
+```
+
+This is why the sync script preserves the original path structure (see "Image Path
+Strategy" in Phase 1) — the mirrored path must match exactly what kubelet requests.
+No image reference rewriting is needed in chart values.
 
 ### Constraints and Limitations
 
