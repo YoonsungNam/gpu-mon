@@ -111,3 +111,6 @@ releases:
     namespace: monitoring
     chart: charts/mock-dcgm-exporter
     condition: mock_dcgm.enabled
+    values:
+      - image:
+          tag: "{{ .Values.image_tag }}"
