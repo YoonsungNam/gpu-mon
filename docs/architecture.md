@@ -57,4 +57,4 @@ PRESENTATION
 Public repo (`gpu-mon`): all env-agnostic code, charts, src, schemas, dashboards.
 Private repo (`gpu-mon-corp`): corp-specific configs only, symlinked at deploy time.
 
-See [corp-deployment-strategy.md](corp-deployment-strategy.md) for the airgap deployment guide.
+See [corp-quickstart.md](corp-quickstart.md) for deploy steps, or [corp-deployment-strategy.md](corp-deployment-strategy.md) for the full design.
