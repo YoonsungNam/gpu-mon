@@ -11,16 +11,30 @@
 
 ### One-time symlink setup
 
+The public `gpu-mon` repo contains all charts, source code, and environment-agnostic config.
+Corp-specific details (registry URLs, node IPs, credentials, notification channels) live in the
+separate **private** `gpu-mon-corp` repo to avoid leaking company-specific data.
+
+Symlinks bridge the two repos so that tools like Helmfile and Ansible can find corp configs
+at their expected paths without committing secrets to the public repo:
+
 ```bash
 cd ~/work/gpu-mon/environments/
 ln -s ../../gpu-mon-corp/environments/corp ./corp
+# → Helmfile values for corp env (registry URL, image overrides, Helm values)
 
 cd ~/work/gpu-mon/ansible/inventory/
 ln -s ../../../gpu-mon-corp/ansible/inventory/corp.ini ./corp.ini
+# → Ansible inventory (corp node IPs, SSH config for baremetal/VM agent deployment)
 
 cd ~/work/gpu-mon/alerting/alertmanager/
 ln -s ../../../gpu-mon-corp/alerting/alertmanager/corp.yaml ./corp.yaml
+# → Alertmanager routing (corp notification channels, escalation rules)
 ```
+
+These paths are gitignored (`environments/corp/`, `**/corp*`), so the symlinks
+themselves are never committed. See `environments/corp.example/` for the expected
+structure without real values.
 
 ## Deploy
 
