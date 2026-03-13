@@ -1,13 +1,13 @@
 # Corp Deployment Strategy
 
 > Deployment strategy for airgapped production environment using Rancher (RKE2).
-> Supersedes Scenario A/B in `deployment-workflow.md` with a unified, automated approach.
+> Supersedes Scenario A/B in `deployment-workflow.md` and the former `corp-deployment.md` guide.
 
 ## Prerequisites
 
 - `gpu-mon-corp` private repo cloned alongside this repo
 - WSL with internet access (for image sync and Helm deploy)
-- Docker CLI + `yq` installed on WSL
+- Docker CLI + `yq` installed on WSL, authenticated to both GHCR and corp registry
 
 ### One-time symlink setup (WSL)
 
@@ -59,7 +59,7 @@ and can be adopted incrementally.
 
 ### Phase 1: Script-based Sync + Helmfile Deploy (start here)
 
-**Prerequisite**: Docker CLI + `yq` on WSL, authenticated to both GHCR and corp registry.
+**Prerequisite**: See [Prerequisites](#prerequisites) above.
 
 ```
  WSL
@@ -187,13 +187,19 @@ from Phase 1 for consistency.
 |---|---|---|
 | `victoriametrics/vmagent:v1.106.1` | `registry.corp.internal/victoriametrics/vmagent:v1.106.1` | Preserves upstream path |
 | `ghcr.io/yoonsungnam/gpu-mon/mock-dcgm-exporter:v1.0.0` | `registry.corp.internal/yoonsungnam/gpu-mon/mock-dcgm-exporter:v1.0.0` | Preserves GHCR path |
-| `registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.14.0` | `registry.corp.internal/kube-state-metrics/kube-state-metrics:v2.14.0` | Preserves upstream path |
+| `registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.14.0` | `registry.corp.internal/registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.14.0` | Preserves full source path (sync script uses `versions.yaml` key as-is) |
 
 With this convention:
 - **Phase 1-2**: Corp `values.yaml` sets `image_registry: registry.corp.internal/yoonsungnam/gpu-mon`
   and charts resolve images correctly
 - **Phase 3**: RKE2 registry mirrors redirect `ghcr.io` → `registry.corp.internal` transparently,
   so charts can use upstream image refs without rewriting
+
+> **Note**: For non-DockerHub registries (e.g., `registry.k8s.io`), the Phase 1 sync script
+> produces paths like `registry.corp.internal/registry.k8s.io/...` because it uses the
+> `versions.yaml` key as-is. In Phase 3, RKE2 mirrors strip the source registry host,
+> expecting `registry.corp.internal/kube-state-metrics/...` instead. The sync script must
+> be updated to strip registry host prefixes before Phase 3 adoption.
 
 ### corp-sync-images.sh — Image Sync Script
 
