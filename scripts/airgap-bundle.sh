@@ -1,6 +1,6 @@
 #!/bin/bash
 # Generate an Airgap deployment bundle for corp environment.
-# See docs/corp-deployment.md for the full deployment guide.
+# See docs/corp-deployment-strategy.md for the full deployment guide.
 #
 # Requires: docker, helm, helmfile, curl
 # Assumes environments/corp/ is symlinked from gpu-mon-corp repo.
