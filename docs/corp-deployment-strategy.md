@@ -3,6 +3,31 @@
 > Deployment strategy for airgapped production environment using Rancher (RKE2).
 > Supersedes Scenario A/B in `deployment-workflow.md` with a unified, automated approach.
 
+## Prerequisites
+
+- `gpu-mon-corp` private repo cloned alongside this repo
+- WSL with internet access (for image sync and Helm deploy)
+- Docker CLI + `yq` installed on WSL
+
+### One-time symlink setup (WSL)
+
+Actual infrastructure details (registry URLs, hostnames, credentials) live in the
+separate private `gpu-mon-corp` repo. Symlink the corp environment into this repo:
+
+```bash
+cd ~/work/gpu-mon/environments/
+ln -s ../../gpu-mon-corp/environments/corp ./corp
+
+cd ~/work/gpu-mon/ansible/inventory/
+ln -s ../../../gpu-mon-corp/ansible/inventory/corp.ini ./corp.ini
+
+cd ~/work/gpu-mon/alerting/alertmanager/
+ln -s ../../../gpu-mon-corp/alerting/alertmanager/corp.yaml ./corp.yaml
+```
+
+`environments/corp.example/` shows the expected structure without real values.
+Copy to the private repo and fill in actual infrastructure details.
+
 ## Topology
 
 ```
