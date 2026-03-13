@@ -1,0 +1,36 @@
+replicaCount: 1
+
+image:
+  repository: victoriametrics/vmagent
+  tag: "v1.106.1"
+  pullPolicy: IfNotPresent
+
+# remote_write targets
+remoteWrite:
+  - url: "http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prometheus/"
+
+# Full vmagent scrape configuration (merged by environment values)
+scrapeConfig: {}
+
+# File SD config map: Ansible-managed JSON target files
+# Keys are mounted as /etc/vmagent/sd/<key>
+fileSD:
+  enabled: false
+  configMapName: vmagent-file-sd
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+service:
+  type: ClusterIP
+  port: 8429
+
+# vmagent UI ingress (optional)
+ingress:
+  enabled: false
+  host: ""

@@ -1,0 +1,55 @@
+suite: mock-dcgm-exporter deployment
+templates:
+  - templates/deployment.yaml
+
+tests:
+  - it: renders a Deployment
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: injects NODE_COUNT env var
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NODE_COUNT
+            value: "2"
+
+  - it: injects GPUS_PER_NODE env var
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GPUS_PER_NODE
+            value: "2"
+
+  - it: injects GPU_MODEL env var
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GPU_MODEL
+            value: A100
+
+  - it: exposes metrics port 9400
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 9400
+
+  - it: has a liveness probe on /metrics
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /metrics
+
+  - it: overrides nodeCount from values
+    set:
+      nodeCount: 8
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NODE_COUNT
+            value: "8"

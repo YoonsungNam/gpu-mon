@@ -1,0 +1,92 @@
+---
+# Build and push custom container images to GHCR.
+# Runs on push to dev/main when source files change.
+
+name: Docker Build & Push
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "src/mock-dcgm-exporter/**"
+      - "src/metadata-collector/**"
+      - ".github/workflows/docker-build-push.yml"
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  changes:
+    name: Detect changed images
+    runs-on: ubuntu-latest
+    outputs:
+      mock-dcgm-exporter: ${{ steps.filter.outputs.mock-dcgm-exporter }}
+      metadata-collector: ${{ steps.filter.outputs.metadata-collector }}
+      image_prefix: ${{ steps.repo.outputs.lowercase }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lowercase repo name
+        id: repo
+        run: echo "lowercase=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            mock-dcgm-exporter:
+              - 'src/mock-dcgm-exporter/**'
+            metadata-collector:
+              - 'src/metadata-collector/**'
+
+  build-push:
+    name: Build ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    needs: changes
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: mock-dcgm-exporter
+            context: src/mock-dcgm-exporter
+            changed: ${{ needs.changes.outputs.mock-dcgm-exporter }}
+          - image: metadata-collector
+            context: src/metadata-collector
+            changed: ${{ needs.changes.outputs.metadata-collector }}
+    if: needs.changes.outputs.mock-dcgm-exporter == 'true' || needs.changes.outputs.metadata-collector == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+        if: matrix.changed == 'true'
+
+      - name: Log in to GHCR
+        if: matrix.changed == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate tags
+        if: matrix.changed == 'true'
+        id: tags
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ needs.changes.outputs.image_prefix }}/${{ matrix.image }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAGS="${IMAGE}:${BRANCH}-${SHORT_SHA}"
+          TAGS="${TAGS},${IMAGE}:${BRANCH}"
+          # :latest only moves on main push
+          if [ "$BRANCH" = "main" ]; then
+            TAGS="${TAGS},${IMAGE}:latest"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        if: matrix.changed == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}

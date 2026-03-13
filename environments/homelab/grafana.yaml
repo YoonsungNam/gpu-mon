@@ -1,0 +1,41 @@
+# Grafana Helm values — homelab overrides
+
+adminPassword: admin  # Change in production
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: VictoriaMetrics
+        type: prometheus
+        url: http://vmselect-victoriametrics.monitoring.svc:8481/select/0/prometheus
+        isDefault: true
+        access: proxy
+
+      - name: ClickHouse
+        type: grafana-clickhouse-datasource
+        url: http://clickhouse-gpu-monitoring.clickhouse.svc:8123
+        jsonData:
+          host: clickhouse-gpu-monitoring.clickhouse.svc
+          port: 8123
+          defaultDatabase: gpu_monitoring
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: gpu-mon
+        orgId: 1
+        folder: GPU Monitoring
+        type: file
+        disableDeletion: false
+        options:
+          path: /var/lib/grafana/dashboards/gpu-mon
+
+plugins:
+  - grafana-clickhouse-datasource
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi

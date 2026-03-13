@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+# ─── pytest ──────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths = ["src", "tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+markers = [
+    "unit: pure unit tests — no external services required",
+    "component: per-component smoke tests — requires 'make dev-up'",
+    "e2e: full pipeline tests — requires 'make dev-up'",
+    "ansible: Ansible syntax/lint — requires ansible-playbook on PATH",
+]
+
+# Run unit tests by default; others require explicit -m flag
+addopts = "-v --tb=short"
+
+# ─── ruff ────────────────────────────────────────────────────────────────────
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+# ─── Test dependencies (pip install -e .[test]) ───────────────────────────────
+# Install with: pip install pytest pytest-timeout requests
+
+[project]
+name = "gpu-mon"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-timeout>=2.3",
+    "requests>=2.32",
+    "PyYAML>=6.0",
+]

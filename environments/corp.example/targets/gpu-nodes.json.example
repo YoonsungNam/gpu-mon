@@ -1,0 +1,25 @@
+[
+  {
+    "targets": [
+      "gpu-node-01:9400",
+      "gpu-node-02:9400",
+      "gpu-node-03:9400"
+    ],
+    "labels": {
+      "env": "baremetal",
+      "cluster": "YOUR_CLUSTER_NAME",
+      "workload_type": "training"
+    }
+  },
+  {
+    "targets": [
+      "infer-node-01:9400",
+      "infer-node-02:9400"
+    ],
+    "labels": {
+      "env": "baremetal",
+      "cluster": "YOUR_CLUSTER_NAME",
+      "workload_type": "inference"
+    }
+  }
+]

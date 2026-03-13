@@ -1,0 +1,18 @@
+# Alertmanager configuration — homelab environment
+# Routes all alerts to a local webhook receiver for testing.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: [alertname, node]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: homelab-default
+
+receivers:
+  - name: homelab-default
+    webhook_configs:
+      - url: http://localhost:9093/alerts
+        send_resolved: true

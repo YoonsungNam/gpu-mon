@@ -1,0 +1,40 @@
+groups:
+  - name: gpu-efficiency
+    interval: 300s
+    rules:
+      # ── Low utilization ───────────────────────────────────────────────────
+      - alert: GPULowUtilization
+        expr: |
+          avg_over_time(DCGM_FI_DEV_GPU_UTIL[30m]) < 10
+          and on(node, gpu)
+          avg_over_time(DCGM_FI_DEV_FB_USED[30m]) > 1000
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU underutilized on {{ $labels.node }} GPU {{ $labels.gpu }}"
+          description: "Average GPU utilization is {{ $value }}% over 30m while memory is in use. Possible idle job."
+
+      # ── Low Tensor Core utilization during training ───────────────────────
+      - alert: GPUTensorCoreUnderutilized
+        expr: |
+          DCGM_FI_PROF_PIPE_TENSOR_ACTIVE < 0.20
+          and DCGM_FI_DEV_GPU_UTIL > 80
+          and on(node) label_replace(up{workload_type="training"}, "node", "$1", "instance", "(.+):.*") == 1
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low Tensor Core usage on {{ $labels.node }} GPU {{ $labels.gpu }} (training)"
+          description: "Tensor Core active: {{ $value | humanizePercentage }}. GPU Util is high but Tensor Cores are idle — possible memory-bound or compute-unoptimized workload."
+
+      # ── Memory pressure ───────────────────────────────────────────────────
+      - alert: GPUMemoryPressure
+        expr: |
+          (DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE)) > 0.95
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU memory nearly full on {{ $labels.node }} GPU {{ $labels.gpu }}"
+          description: "{{ $value | humanizePercentage }} of GPU memory is used."

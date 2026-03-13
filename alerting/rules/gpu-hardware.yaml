@@ -1,0 +1,51 @@
+groups:
+  - name: gpu-hardware
+    interval: 60s
+    rules:
+      # ── Temperature ──────────────────────────────────────────────────────
+      - alert: GPUTemperatureHigh
+        expr: DCGM_FI_DEV_GPU_TEMP > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU temperature high on {{ $labels.node }} GPU {{ $labels.gpu }}"
+          description: "Temperature is {{ $value }}°C (threshold: 85°C)."
+
+      - alert: GPUTemperatureCritical
+        expr: DCGM_FI_DEV_GPU_TEMP > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GPU temperature critical on {{ $labels.node }} GPU {{ $labels.gpu }}"
+          description: "Temperature is {{ $value }}°C. Possible throttling or hardware failure."
+
+      # ── XID Errors ───────────────────────────────────────────────────────
+      - alert: GPUXidError
+        expr: increase(DCGM_FI_DEV_XID_ERRORS[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "XID error detected on {{ $labels.node }} GPU {{ $labels.gpu }}"
+          description: "{{ $value }} XID error(s) in the last 5 minutes. Possible hardware failure."
+
+      # ── Power ─────────────────────────────────────────────────────────────
+      - alert: GPUPowerHigh
+        expr: DCGM_FI_DEV_POWER_USAGE > 400
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU power usage high on {{ $labels.node }} GPU {{ $labels.gpu }}"
+          description: "Power is {{ $value }}W."
+
+      # ── SM Clock throttle ─────────────────────────────────────────────────
+      - alert: GPUClockThrottle
+        expr: DCGM_FI_DEV_SM_CLOCK < 500 and DCGM_FI_DEV_GPU_UTIL > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU clock throttled on {{ $labels.node }} GPU {{ $labels.gpu }}"
+          description: "SM Clock: {{ $value }}MHz while utilization is high. Check temperature and power."

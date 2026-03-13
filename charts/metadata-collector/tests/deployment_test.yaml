@@ -1,0 +1,75 @@
+suite: metadata-collector deployment
+templates:
+  - templates/deployment.yaml
+
+tests:
+  - it: renders a Deployment
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: exposes health port 8080
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+
+  - it: mounts config volume at /etc/metadata-collector
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: config
+            mountPath: /etc/metadata-collector
+
+  - it: does not inject S2 secret env when existingSecrets.s2ApiToken is empty
+    set:
+      existingSecrets:
+        s2ApiToken: ""
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: S2_API_TOKEN
+
+  - it: injects S2_API_TOKEN from secret when s2ApiToken is set
+    set:
+      existingSecrets:
+        s2ApiToken: my-s2-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: S2_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: my-s2-secret
+                key: token
+
+  - it: injects VCENTER credentials when vcenterCredentials is set
+    set:
+      existingSecrets:
+        vcenterCredentials: my-vcenter-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: VCENTER_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: my-vcenter-secret
+                key: username
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: VCENTER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: my-vcenter-secret
+                key: password
+
+  - it: has liveness probe on /health
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /health

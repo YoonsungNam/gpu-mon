@@ -1,0 +1,15 @@
+apiVersion: 1
+datasources:
+  - name: VictoriaMetrics
+    type: prometheus
+    url: http://vmselect:8481/select/0/prometheus
+    isDefault: true
+    access: proxy
+
+  - name: ClickHouse
+    type: grafana-clickhouse-datasource
+    jsonData:
+      host: clickhouse
+      port: 8123
+      protocol: http
+      defaultDatabase: gpu_monitoring

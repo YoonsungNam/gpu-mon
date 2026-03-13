@@ -1,0 +1,10 @@
+[
+  {
+    "targets": [],
+    "labels": {
+      "env": "homelab",
+      "cluster": "homelab-cluster",
+      "workload_type": "inference"
+    }
+  }
+]
