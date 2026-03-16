@@ -63,7 +63,7 @@ Examples:
 - Ansible: `[gpu_nodes]` → `[baremetal_gpu_nodes]`, add `[vm_gpu_nodes]`
 
 ### homelab
-- Rename `targets/gpu-nodes.json` → `targets/baremetal-gpu-nodes.json`
+- Keep `targets/gpu-nodes.json` as a K8s mock-exporter target file; do not rename it to `baremetal-gpu-nodes.json`
 - Labels: `"env": "homelab"` → `"platform": "k8s"` (mock exporter runs as K8s pod)
 - vmagent static_configs: `env: homelab` → `platform: k8s`
 - Ansible: `[gpu_nodes]` → `[baremetal_gpu_nodes]`, add `[vm_gpu_nodes]` placeholder
