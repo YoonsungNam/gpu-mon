@@ -23,13 +23,13 @@ The `environments/` directory structure is orthogonal — it describes *where th
 | `platform` value | Meaning | Environments |
 |---|---|---|
 | `baremetal` | Physical GPU nodes, Ansible-managed | corp |
-| `vm` | VMware VM GPU nodes, Ansible-managed | corp |
+| `vm` | GPU/TPU VMs (VMware, GCP, AWS, etc.), Ansible-managed | corp, homelab |
 | `k8s` | K8s-native workloads (real or mock pods) | corp, homelab |
 | `docker` | Docker Compose local stack | macbook |
 
 Examples:
 - Corp baremetal DCGM targets → `platform: "baremetal"`
-- Corp VMware VM DCGM targets → `platform: "vm"`
+- Corp or homelab GPU/TPU VM targets → `platform: "vm"`
 - Homelab mock DCGM exporter pod → `platform: "k8s"`
 - Macbook mock DCGM exporter container → `platform: "docker"`
 
@@ -38,7 +38,7 @@ Examples:
 | File SD File | Ansible Group | Port | Scrape Target |
 |---|---|---|---|
 | `baremetal-gpu-nodes.json` | `baremetal_gpu_nodes` | :9400 (+:9100 port rewrite) | Baremetal DCGM exporter + node-exporter |
-| `vm-gpu-nodes.json` | `vm_gpu_nodes` | :9400 | VMware VM DCGM exporter |
+| `vm-gpu-nodes.json` | `vm_gpu_nodes` | :9400 | GPU/TPU VM DCGM exporter |
 | `inference-servers.json` | `inference_servers` | :8080 | Inference app metrics |
 
 ## Label Renames
