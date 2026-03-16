@@ -53,6 +53,9 @@ Examples:
 | `vm-gpu-nodes.json` | `vm_gpu_nodes` | :9400 | GPU VM DCGM exporter |
 | `inference-servers.json` | `inference_servers` | :8080 | Inference app metrics |
 
+Note: current naming and examples assume NVIDIA/DCGM-based GPU monitoring. AMD GPU support is not
+modeled in this taxonomy yet and should be considered explicitly in a follow-up design pass.
+
 ## Label Renames
 
 | Before | After | Reason |
