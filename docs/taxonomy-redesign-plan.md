@@ -66,7 +66,7 @@ Examples:
 - Keep `targets/gpu-nodes.json` as a K8s mock-exporter target file; do not rename it to `baremetal-gpu-nodes.json`
 - Labels: `"env": "homelab"` → `"platform": "k8s"` (mock exporter runs as K8s pod)
 - vmagent static_configs: `env: homelab` → `platform: k8s`
-- Ansible: `[gpu_nodes]` → `[baremetal_gpu_nodes]`, add `[vm_gpu_nodes]` placeholder
+- Ansible: `[gpu_nodes]` → `[baremetal_gpu_nodes]`, add `[vm_gpu_nodes]` (both placeholder groups, no real hosts in homelab)
 - Commented-out File SD path: update to `baremetal-gpu-nodes.json`
 
 ### macbook
