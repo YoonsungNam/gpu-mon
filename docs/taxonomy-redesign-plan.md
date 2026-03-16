@@ -35,13 +35,13 @@ homelab/macbook configs and tests.
 | `platform` value | Meaning | Environments |
 |---|---|---|
 | `baremetal` | Physical GPU nodes, Ansible-managed | corp |
-| `vm` | GPU VMs (VMware, GCP, AWS, etc.), Ansible-managed | corp, homelab |
+| `vm` | GPU/TPU VMs (VMware, GCP, AWS, etc.), Ansible-managed | corp, homelab |
 | `k8s` | K8s-native workloads (real or mock pods) | corp, homelab |
 | `docker` | Docker Compose local stack | macbook |
 
 Examples:
 - Corp baremetal DCGM targets → `platform: "baremetal"`
-- Corp or homelab GPU VM targets → `platform: "vm"`
+- Corp or homelab GPU/TPU VM targets → `platform: "vm"`
 - Homelab mock DCGM exporter pod → `platform: "k8s"`
 - Macbook mock DCGM exporter container → `platform: "docker"`
 
