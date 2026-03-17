@@ -35,16 +35,16 @@ done
 
 echo ""
 echo "[2] VictoriaMetrics"
-check "vminsert health" "kubectl -n ${NAMESPACE} exec deploy/vminsert -- wget -qO- localhost:8480/health"
-check "vmselect health" "kubectl -n ${NAMESPACE} exec deploy/vmselect -- wget -qO- localhost:8481/health"
+check "vminsert health" "kubectl -n ${NAMESPACE} exec deploy/victoriametrics-victoria-metrics-cluster-vminsert -- wget -qO- 127.0.0.1:8480/health"
+check "vmselect health" "kubectl -n ${NAMESPACE} exec deploy/victoriametrics-victoria-metrics-cluster-vmselect -- wget -qO- 127.0.0.1:8481/health"
 
 echo ""
 echo "[3] vmagent targets"
-check "vmagent health" "kubectl -n ${NAMESPACE} exec deploy/vmagent-central -- wget -qO- localhost:8429/health"
+check "vmagent health" "kubectl -n ${NAMESPACE} exec deploy/vmagent-central-vmagent-central -- wget -qO- 127.0.0.1:8429/health"
 
 echo ""
 echo "[4] Grafana"
-check "grafana health" "kubectl -n ${NAMESPACE} exec deploy/grafana -- wget -qO- localhost:3000/api/health"
+check "grafana health" "kubectl -n ${NAMESPACE} exec deploy/grafana -- wget -qO- 127.0.0.1:3000/api/health"
 
 if [[ "${FAIL}" -eq 0 ]]; then
     echo ""
