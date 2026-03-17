@@ -77,7 +77,7 @@ def test_dcgm_metrics_appear_in_vmselect():
 
 def test_required_labels_on_scraped_metric():
     """
-    Scraped DCGM metrics must carry 'node', 'gpu', 'env', and 'job' labels.
+    Scraped DCGM metrics must carry 'node', 'gpu', 'deployment_env', 'platform', and 'job' labels.
     """
     poll_until(
         lambda: _metric_has_results(_METRIC),
@@ -88,7 +88,7 @@ def test_required_labels_on_scraped_metric():
     body = _query_vmselect(_METRIC)
     for series in body["data"]["result"]:
         labels = series["metric"]
-        for required in ("node", "gpu", "env", "job"):
+        for required in ("node", "gpu", "deployment_env", "platform", "job"):
             assert required in labels, (
                 f"Required label '{required}' missing from series: {labels}"
             )
