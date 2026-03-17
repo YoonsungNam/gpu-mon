@@ -7,7 +7,8 @@ CREATE DATABASE IF NOT EXISTS gpu_monitoring ON CLUSTER '{cluster}';
 CREATE TABLE IF NOT EXISTS gpu_monitoring.gpu_unified_logs ON CLUSTER '{cluster}'
 (
     timestamp   DateTime64(3)                    CODEC(Delta, ZSTD),
-    env         LowCardinality(String),           -- baremetal, k8s, vm, homelab
+    deployment_env LowCardinality(String),          -- macbook, homelab, corp
+    platform       LowCardinality(String),          -- docker, k8s, baremetal, vm
     cluster_id  LowCardinality(String),
     node_id     String,
     gpu_id      Nullable(UInt8),
@@ -18,6 +19,6 @@ CREATE TABLE IF NOT EXISTS gpu_monitoring.gpu_unified_logs ON CLUSTER '{cluster}
 )
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
-ORDER BY (env, cluster_id, node_id, timestamp)
+ORDER BY (deployment_env, platform, cluster_id, node_id, timestamp)
 TTL toDateTime(timestamp) + INTERVAL 30 DAY
 SETTINGS index_granularity = 8192;

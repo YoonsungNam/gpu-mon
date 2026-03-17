@@ -37,7 +37,7 @@ _metrics_lock = threading.Lock()
 
 def _gpu_label(node_idx: int, gpu_idx: int) -> str:
     node_name = f"mock-node-{node_idx:02d}"
-    return f'node="{node_name}",gpu="{gpu_idx}",gpu_model="{GPU_MODEL}",env="homelab"'
+    return f'node="{node_name}",gpu="{gpu_idx}",gpu_model="{GPU_MODEL}",deployment_env="macbook",platform="docker"'
 
 
 def _simulate_util(t: float, node: int, gpu: int) -> float:
