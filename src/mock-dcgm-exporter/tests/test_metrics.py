@@ -4,7 +4,7 @@ Unit tests for mock-dcgm-exporter metric generation.
 Validates:
 - All expected L1 and L2 DCGM metric names are present
 - Correct number of series (NODE_COUNT × GPUS_PER_NODE)
-- Required labels on every metric (node, gpu, gpu_model, env)
+- Required labels on every metric (node, gpu, gpu_model, deployment_env, platform)
 - Value ranges are physically plausible
 """
 
@@ -39,7 +39,7 @@ L2_METRICS = [
     "DCGM_FI_PROF_NVLINK_TX_BYTES",
 ]
 
-REQUIRED_LABELS = ["node", "gpu", "gpu_model", "env"]
+REQUIRED_LABELS = ["node", "gpu", "gpu_model", "deployment_env", "platform"]
 
 # Use small topology for deterministic tests
 NODE_COUNT    = 2
@@ -145,9 +145,15 @@ def test_gpu_label_is_numeric(parsed_series):
 
 
 @pytest.mark.unit
-def test_env_label_is_homelab(parsed_series):
+def test_deployment_env_label_is_macbook(parsed_series):
     for labels, _ in parsed_series["DCGM_FI_DEV_GPU_UTIL"]:
-        assert labels["env"] == "homelab"
+        assert labels["deployment_env"] == "macbook"
+
+
+@pytest.mark.unit
+def test_platform_label_is_docker(parsed_series):
+    for labels, _ in parsed_series["DCGM_FI_DEV_GPU_UTIL"]:
+        assert labels["platform"] == "docker"
 
 
 # ─── Value ranges ─────────────────────────────────────────────────────────────

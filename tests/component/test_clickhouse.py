@@ -29,7 +29,8 @@ EXPECTED_TABLES = [
 TABLE_COLUMNS = {
     "gpu_unified_logs": {
         "timestamp": "DateTime",
-        "env": "String",
+        "deployment_env": "String",
+        "platform": "String",
         "node_id": "String",
         "log_level": "String",
         "message": "String",
@@ -141,8 +142,8 @@ def test_insert_and_select_gpu_unified_logs():
         params={
             "query": (
                 "INSERT INTO gpu_monitoring.gpu_unified_logs "
-                "(timestamp, env, cluster_id, node_id, log_level, source, message, metadata) "
-                "VALUES (now(), 'test', 'test-cluster', 'test-node', 'INFO', 'system', 'test log', '{}')"
+                "(timestamp, deployment_env, platform, cluster_id, node_id, log_level, source, message, metadata) "
+                "VALUES (now(), 'test', 'docker', 'test-cluster', 'test-node', 'INFO', 'system', 'test log', '{}')"
             )
         },
         timeout=5,
@@ -153,7 +154,7 @@ def test_insert_and_select_gpu_unified_logs():
         params={
             "query": (
                 "SELECT count() FROM gpu_monitoring.gpu_unified_logs "
-                "WHERE env='test' AND node_id='test-node'"
+                "WHERE deployment_env='test' AND node_id='test-node'"
             )
         },
         timeout=5,

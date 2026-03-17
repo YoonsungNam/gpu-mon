@@ -3,7 +3,8 @@ CREATE DATABASE IF NOT EXISTS gpu_monitoring;
 CREATE TABLE IF NOT EXISTS gpu_monitoring.gpu_unified_logs
 (
     timestamp   DateTime64(3)          CODEC(Delta, ZSTD),
-    env         LowCardinality(String),
+    deployment_env LowCardinality(String),
+    platform       LowCardinality(String),
     cluster_id  LowCardinality(String),
     node_id     String,
     gpu_id      Nullable(UInt8),
@@ -14,7 +15,7 @@ CREATE TABLE IF NOT EXISTS gpu_monitoring.gpu_unified_logs
 )
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(timestamp)
-ORDER BY (env, cluster_id, node_id, timestamp)
+ORDER BY (deployment_env, platform, cluster_id, node_id, timestamp)
 TTL toDateTime(timestamp) + INTERVAL 30 DAY
 SETTINGS index_granularity = 8192;
 
