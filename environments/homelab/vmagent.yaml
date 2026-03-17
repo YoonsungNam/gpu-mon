@@ -18,7 +18,8 @@ scrapeConfig:
         - targets:
             - "mock-dcgm-exporter.monitoring.svc:9400"
           labels:
-            env: homelab
+            deployment_env: homelab
+            platform: k8s
             cluster: homelab-cluster
             workload_type: training
 

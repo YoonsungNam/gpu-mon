@@ -6,7 +6,8 @@
       "gpu-node-03:9400"
     ],
     "labels": {
-      "env": "baremetal",
+      "deployment_env": "corp",
+      "platform": "baremetal",
       "cluster": "YOUR_CLUSTER_NAME",
       "workload_type": "training"
     }
@@ -17,7 +18,8 @@
       "infer-node-02:9400"
     ],
     "labels": {
-      "env": "baremetal",
+      "deployment_env": "corp",
+      "platform": "baremetal",
       "cluster": "YOUR_CLUSTER_NAME",
       "workload_type": "inference"
     }

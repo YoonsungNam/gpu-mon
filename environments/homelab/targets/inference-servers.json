@@ -2,7 +2,8 @@
   {
     "targets": [],
     "labels": {
-      "env": "homelab",
+      "deployment_env": "homelab",
+      "platform": "k8s",
       "cluster": "homelab-cluster",
       "workload_type": "inference"
     }

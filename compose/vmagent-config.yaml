@@ -7,6 +7,7 @@ scrape_configs:
       - targets:
           - "mock-dcgm-exporter:9400"
         labels:
-          env: homelab
+          deployment_env: macbook
+          platform: docker
           cluster: macbook
           workload_type: training
