@@ -7,7 +7,7 @@
 #   ansible-playbook -i inventory/corp.ini playbooks/deploy-node-agents.yaml  # (symlinked)
 
 - name: Deploy GPU monitoring node agents
-  hosts: gpu_nodes
+  hosts: baremetal_gpu_nodes
   become: true
   vars:
     dcgm_version: "3.3.8-3.6.0-ubuntu22.04"
