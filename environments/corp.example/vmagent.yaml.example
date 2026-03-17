@@ -14,7 +14,7 @@ scrapeConfig:
     # ── Baremetal GPU Clusters (File SD — Ansible-managed) ────────────────
     - job_name: "baremetal-dcgm"
       file_sd_configs:
-        - files: ["/etc/vmagent/sd/gpu-nodes.json"]
+        - files: ["/etc/vmagent/sd/baremetal-gpu-nodes.json"]
           refresh_interval: 60s
       relabel_configs:
         - source_labels: [__address__]
@@ -23,7 +23,7 @@ scrapeConfig:
 
     - job_name: "baremetal-node-exporter"
       file_sd_configs:
-        - files: ["/etc/vmagent/sd/gpu-nodes.json"]
+        - files: ["/etc/vmagent/sd/baremetal-gpu-nodes.json"]
           refresh_interval: 60s
       relabel_configs:
         - source_labels: [__address__]

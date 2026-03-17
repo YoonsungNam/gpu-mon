@@ -10,7 +10,7 @@ Actual production values live in a separate private repo and are symlinked here 
 |---|---|
 | `values.yaml.example` | Environment-level variables (registry, feature flags) |
 | `vmagent.yaml.example` | Central vmagent scrape configuration overrides |
-| `targets/gpu-nodes.json.example` | File SD target list for Baremetal/VM GPU nodes |
+| `targets/baremetal-gpu-nodes.json.example` | File SD target list for Baremetal/VM GPU nodes |
 
 ## Usage
 
@@ -18,7 +18,7 @@ Actual production values live in a separate private repo and are symlinked here 
 # 1. Copy examples and fill in real values
 cp values.yaml.example values.yaml
 cp vmagent.yaml.example vmagent.yaml
-cp targets/gpu-nodes.json.example targets/gpu-nodes.json
+cp targets/baremetal-gpu-nodes.json.example targets/baremetal-gpu-nodes.json
 
 # 2. Edit with your actual infrastructure details
 vim values.yaml

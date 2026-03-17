@@ -52,7 +52,7 @@ scrapeConfig:
     # Empty in homelab (mock exporter handles this role).
     # - job_name: "baremetal-dcgm"
     #   file_sd_configs:
-    #     - files: ["/etc/vmagent/sd/gpu-nodes.json"]
+    #     - files: ["/etc/vmagent/sd/baremetal-gpu-nodes.json"]
     #       refresh_interval: 60s
 
 resources:
