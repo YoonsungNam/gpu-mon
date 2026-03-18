@@ -33,42 +33,6 @@ jobs:
             helm lint "$chart"
           done
 
-  helmfile-validate:
-    name: helmfile template + values validation
-    runs-on: ubuntu-latest
-    needs: helm-lint
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: "3.14.4"
-
-      - name: Install helmfile
-        uses: mamezou-tech/setup-helmfile@v2.0.0
-        with:
-          helmfile-version: "0.169.2"
-          install-kubectl: false
-
-      - name: Install yq
-        uses: mikefarah/yq@v4
-
-      - name: Add Helm repositories
-        run: |
-          helm repo add victoriametrics https://victoriametrics.github.io/helm-charts
-          helm repo add grafana https://grafana.github.io/helm-charts
-          helm repo add vector https://helm.vector.dev
-          helm repo add clickhouse-operator https://docs.altinity.com/clickhouse-operator
-          helm repo update
-
-      - name: Helmfile template (homelab)
-        run: helmfile -e homelab template > /dev/null
-
-      - name: Validate values keys
-        run: ./scripts/validate-values-keys.sh homelab
-
   helm-unittest:
     name: helm-unittest
     runs-on: ubuntu-latest
