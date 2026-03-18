@@ -48,8 +48,12 @@ for i in $(seq 0 $((count - 1))); do
       echo "SKIP [$name]: no version pinned for $chart"
       continue
     fi
-    chart_keys=$(helm show values "$chart" --version "$version" 2>/dev/null \
-      | yq 'keys | .[]' 2>/dev/null | sort)
+    chart_defaults=$(helm show values "$chart" --version "$version" 2>/dev/null)
+    active_keys=$(echo "$chart_defaults" | yq 'keys | .[]' 2>/dev/null)
+    # Also capture commented-out top-level keys (e.g. "# adminPassword: ...")
+    commented_keys=$(echo "$chart_defaults" \
+      | grep -E '^# [a-zA-Z][a-zA-Z0-9_-]*:' | sed 's/^# //; s/:.*//')
+    chart_keys=$(printf '%s\n%s\n' "$active_keys" "$commented_keys" | grep -v '^$' | sort -u)
     chart_label="$chart@$version"
   fi
 

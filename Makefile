@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 .PHONY: help dev-up dev-down homelab-diff homelab-sync build-images lint validate-values chart-diff
 
 REGISTRY ?= ghcr.io/yoonsungnam/gpu-mon
