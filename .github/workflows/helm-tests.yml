@@ -70,6 +70,58 @@ jobs:
       - name: Validate values keys
         run: ./scripts/validate-values-keys.sh homelab
 
+  corp-template-smoke:
+    name: corp.example template render
+    runs-on: ubuntu-latest
+    needs: helm-lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "3.14.4"
+
+      - name: Install helmfile
+        uses: mamezou-tech/setup-helmfile@v2.0.0
+        with:
+          helmfile-version: "v0.169.2"
+          install-kubectl: false
+          install-helm-plugins: false
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add victoriametrics https://victoriametrics.github.io/helm-charts
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo add vector https://helm.vector.dev
+          helm repo add clickhouse-operator https://docs.altinity.com/clickhouse-operator
+          helm repo update
+
+      - name: Prepare corp environment from examples
+        run: |
+          mkdir -p environments/corp/targets
+          for f in environments/corp.example/*.example; do
+            cp "$f" "environments/corp/$(basename "${f%.example}")"
+          done
+          cp environments/corp.example/targets/*.example environments/corp/targets/ 2>/dev/null || true
+          for f in environments/corp/targets/*.example; do
+            mv "$f" "${f%.example}"
+          done
+
+      - name: Download charts for airgap simulation
+        run: |
+          charts_dir="$(pwd)/.ci-charts"
+          mkdir -p "$charts_dir"
+          helm pull victoriametrics/victoria-metrics-cluster --version 0.36.0 -d "$charts_dir"
+          helm pull clickhouse-operator/altinity-clickhouse-operator --version 0.26.0 -d "$charts_dir"
+          helm pull grafana/grafana --version 10.5.15 -d "$charts_dir"
+          helm pull vector/vector --version 0.50.0 -d "$charts_dir"
+          sed -i "s|charts_dir:.*|charts_dir: \"$charts_dir\"|" environments/corp/values.yaml
+
+      - name: Helmfile template (corp.example smoke test)
+        run: helmfile -e corp template > /dev/null
+
   helm-unittest:
     name: helm-unittest
     runs-on: ubuntu-latest
