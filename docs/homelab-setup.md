@@ -25,6 +25,8 @@ kubectl -n monitoring get pods
 make validate
 ```
 
+For deeper pipeline checks (metrics, ClickHouse, Grafana, labels), see [homelab-validation.md](homelab-validation.md).
+
 ## Port-forward Grafana
 
 ```bash
