@@ -52,7 +52,7 @@ for i in $(seq 0 $((count - 1))); do
     active_keys=$(echo "$chart_defaults" | yq 'keys | .[]' 2>/dev/null)
     # Also capture commented-out top-level keys (e.g. "# adminPassword: ...")
     commented_keys=$(echo "$chart_defaults" \
-      | grep -E '^# [a-zA-Z][a-zA-Z0-9_-]*:' | sed 's/^# //; s/:.*//')
+      | sed -n 's/^# \([a-zA-Z][a-zA-Z0-9_-]*\):.*/\1/p')
     chart_keys=$(printf '%s\n%s\n' "$active_keys" "$commented_keys" | grep -v '^$' | sort -u)
     chart_label="$chart@$version"
   fi
