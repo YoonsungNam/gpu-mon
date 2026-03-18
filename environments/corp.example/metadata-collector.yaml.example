@@ -5,22 +5,30 @@
 
 replicaCount: 1
 
-clickhouse:
-  host: clickhouse-gpu-monitoring.clickhouse.svc
-  port: 9000
-  database: gpu_monitoring
-  batch_size: 500
-  flush_interval_s: 10
+image:
+  tag: "latest"                    # Pin to match image_tag in values.yaml
 
-# S2 batch scheduler integration
-s2:
-  enabled: false                 # Enable after creating S2 credentials secret
-  secretName: ""                 # K8s secret with S2 API URL and auth tokens
+config:
+  clickhouse:
+    host: clickhouse-gpu-monitoring.clickhouse.svc
+    port: 9000
+    database: gpu_monitoring
+    username: metadata_writer
+    batchSize: 500
+    flushInterval: "10s"
 
-# VMware vCenter integration
-vmware:
-  enabled: false                 # Enable after creating vCenter credentials secret
-  secretName: ""                 # K8s secret with vCenter credentials
+  sources:
+    # S2 batch scheduler integration
+    s2:
+      enabled: false               # Enable after creating S2 credentials secret
+    # VMware vCenter integration
+    vmware:
+      enabled: false               # Enable after creating vCenter credentials secret
+
+# Existing secret names (created separately, not by this chart)
+existingSecrets:
+  s2ApiToken: ""                   # K8s secret with key: token
+  vcenterCredentials: ""           # K8s secret with keys: username, password
 
 resources:
   requests:

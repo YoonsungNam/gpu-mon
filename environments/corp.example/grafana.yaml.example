@@ -2,7 +2,9 @@
 # Copy to environments/corp/grafana.yaml (in the private repo)
 # and fill in actual hostnames and credentials.
 
-adminPassword: CHANGE_ME_IN_PRODUCTION   # Use K8s Secret in production
+# For production, prefer admin.existingSecret over plaintext adminPassword.
+# See: https://github.com/grafana/helm-charts/tree/main/charts/grafana
+adminPassword: CHANGE_ME_IN_PRODUCTION
 
 datasources:
   datasources.yaml:
