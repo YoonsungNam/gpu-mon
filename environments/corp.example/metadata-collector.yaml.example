@@ -1,0 +1,31 @@
+# Metadata Collector Helm values — production overrides template.
+# Copy to environments/corp/metadata-collector.yaml (in the private repo).
+# Polls S2 scheduler + VMware vCenter APIs, ingests into ClickHouse.
+# Create K8s secrets for S2/vCenter credentials before enabling.
+
+replicaCount: 1
+
+clickhouse:
+  host: clickhouse-gpu-monitoring.clickhouse.svc
+  port: 9000
+  database: gpu_monitoring
+  batch_size: 500
+  flush_interval_s: 10
+
+# S2 batch scheduler integration
+s2:
+  enabled: false                 # Enable after creating S2 credentials secret
+  secretName: ""                 # K8s secret with S2 API URL and auth tokens
+
+# VMware vCenter integration
+vmware:
+  enabled: false                 # Enable after creating vCenter credentials secret
+  secretName: ""                 # K8s secret with vCenter credentials
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
