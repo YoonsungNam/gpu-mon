@@ -23,7 +23,7 @@ make validate
 ```
 
 This runs `scripts/validate-deployment.sh`, which checks:
-- All pods in the `monitoring` namespace are `Running`
+- All pods are `Running` (defaults to `monitoring` namespace; override with `NAMESPACE=`)
 - vminsert and vmselect health endpoints
 - vmagent health endpoint
 - Grafana health endpoint
@@ -67,7 +67,7 @@ kubectl -n clickhouse port-forward svc/clickhouse-gpu-monitoring 8123:8123 &
 curl -s 'http://127.0.0.1:8123/?query=SHOW+TABLES+FROM+gpu_monitoring'
 ```
 
-Expect at least: `gpu_unified_logs`, `s2_jobs`.
+Expected tables should match the definitions in `schemas/`. At time of writing: `gpu_unified_logs`, `s2_jobs`.
 
 ### Check table is queryable
 
@@ -87,8 +87,10 @@ Check for errors in the log output. Healthy Vector logs show periodic internal m
 
 ```bash
 kubectl -n monitoring port-forward svc/grafana 3000:3000 &
-curl -s -u admin:admin http://127.0.0.1:3000/api/datasources | python3 -m json.tool
+curl -s -u admin:<your-password> http://127.0.0.1:3000/api/datasources | python3 -m json.tool
 ```
+
+> Replace `<your-password>` with the Grafana admin password (default: `admin`).
 
 Verify both VictoriaMetrics (Prometheus type) and ClickHouse datasources are listed.
 
