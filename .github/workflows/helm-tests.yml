@@ -51,6 +51,7 @@ jobs:
         with:
           helmfile-version: "v0.169.2"
           install-kubectl: false
+          install-helm-plugins: false
 
       - name: Install yq
         uses: mikefarah/yq@v4
