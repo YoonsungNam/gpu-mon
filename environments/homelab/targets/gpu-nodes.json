@@ -1,7 +1,7 @@
 [
   {
     "targets": [
-      "mock-dcgm-exporter.monitoring.svc:9400"
+      "mock-dcgm-exporter-mock-dcgm-exporter.monitoring.svc:9400"
     ],
     "labels": {
       "deployment_env": "homelab",
