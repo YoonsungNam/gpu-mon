@@ -106,30 +106,33 @@ mismatches, and template render errors on every PR.
 
 ---
 
-### R4. Production-grade defaults leak to dev environments (Medium)
+### R4. Retention settings split across two layers (Low — downgraded from Medium)
 
-**Problem**: `defaults.yaml` sets retention values appropriate for production:
+**Problem**: Retention is configured at two layers that could drift apart:
 
-```yaml
-retention:
-  metrics_days: 90
-  logs_days: 30
-  metadata_days: 180
-```
+- **Helmfile-level**: `defaults.yaml` defines `retention.metrics_days: 90`,
+  `retention.logs_days: 30`, `retention.metadata_days: 180`. These feed into
+  ClickHouse TTL and Vector sink configs.
+- **Chart-level**: VictoriaMetrics `retentionPeriod` is set directly in the
+  per-environment `victoriametrics.yaml` files (homelab: `30d`, corp: `90d`).
 
-Homelab's `values.yaml` does not override these, so the dev cluster inherits
-90-day metric retention — wasting storage on a test environment.
+Homelab already overrides VictoriaMetrics retention to `30d` in
+`environments/homelab/victoriametrics.yaml`, so there is no immediate storage
+waste. However, the Helmfile-level `retention.metrics_days: 90` in
+`defaults.yaml` does not match homelab's actual `30d` — this inconsistency
+could cause confusion if future charts or scripts consume the Helmfile value.
 
-**Impact**: Homelab storage fills up faster than expected; unclear whether
-defaults are designed for dev or prod use.
+**Impact**: Low — no functional issue today. Risk is semantic drift between
+the two retention settings if new components rely on `retention.metrics_days`.
 
-**Remediation**: Either:
-- (a) Set conservative dev defaults in `defaults.yaml` and override upward in
-  corp, or
-- (b) Override retention in `environments/homelab/values.yaml` to dev-appropriate
-  values (e.g., 7d metrics, 7d logs, 30d metadata).
+**Remediation**: Align `retention.metrics_days` with the actual
+`retentionPeriod` per environment. Either:
+- (a) Override `retention.metrics_days: 30` in `environments/homelab/values.yaml`
+  to match the VictoriaMetrics setting, or
+- (b) Have the VictoriaMetrics chart read from `{{ .Values.retention.metrics_days }}`
+  so there is a single source of truth.
 
-Option (b) is simpler and avoids changing defaults that corp already relies on.
+Option (a) is simpler and sufficient for Phase 1.
 
 ---
 
@@ -256,7 +259,7 @@ values with `YOUR_*_HERE` placeholders, add inline comments for each key.
 ### PR 2: Add CI smoke test for corp template rendering (addresses R3) — gpu-mon only
 
 **Files touched**:
-- `.github/workflows/helm-test.yaml` (add corp-template-render job)
+- `.github/workflows/helm-tests.yml` (add corp-template-render job)
 
 **Approach**: CI job copies `*.example` → `*` in `environments/corp.example/`,
 symlinks to `environments/corp/`, runs `helmfile -e corp template > /dev/null`.
@@ -279,13 +282,15 @@ set, exits non-zero with actionable error messages.
 
 ---
 
-### PR 4: Override homelab retention defaults (addresses R4) — gpu-mon only
+### PR 4: Align Helmfile retention values with chart settings (addresses R4) — gpu-mon only
 
 **Files touched**:
-- `environments/homelab/values.yaml` (add retention overrides)
+- `environments/homelab/values.yaml` (add `retention.metrics_days: 30` to
+  match the `retentionPeriod: "30d"` already set in `victoriametrics.yaml`)
 
-**Approach**: Add dev-appropriate retention values (7d metrics, 7d logs, 30d
-metadata) to homelab values.
+**Approach**: Add explicit retention override so the Helmfile-level value
+matches the chart-level setting. Prevents semantic drift if future components
+consume `retention.metrics_days`.
 
 **Estimated diff**: ~10 lines
 
@@ -361,7 +366,7 @@ in gpu-mon-corp, and those changes are small (doc update + new vars file).
 | PR 1 | R1 — Incomplete corp.example | Medium | Low | None |
 | PR 2 | R3 — No contract validation | High | Low | PR 1 |
 | PR 3 | R5 — No pre-flight check | Medium | Low | None |
-| PR 4 | R4 — Dev retention defaults | Medium | Trivial | None |
+| PR 4 | R4 — Retention value drift | Low | Trivial | None |
 | PR 5 | R7 — Gitignore gaps | Low | Trivial | None |
 | PR 6 | R6 — Ansible env vars | Medium | Medium | None |
 | PR 7 | R2 — Chart version coupling | High | Medium | PR 1, PR 2 |
