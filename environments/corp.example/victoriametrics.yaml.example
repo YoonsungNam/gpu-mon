@@ -1,0 +1,28 @@
+# VictoriaMetrics Helm values — production overrides template.
+# Copy to environments/corp/victoriametrics.yaml (in the private repo)
+# and adjust sizing for your cluster.
+
+vminsert:
+  replicaCount: 2                # HA pair
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+vmselect:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+vmstorage:
+  replicaCount: 2
+  persistentVolume:
+    enabled: true
+    size: 200Gi                  # Adjust based on GPU node count and retention
+  retentionPeriod: "90d"         # Must align with retention.metrics_days in values.yaml
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
