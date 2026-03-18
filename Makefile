@@ -1,4 +1,4 @@
-.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images lint
+.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images lint validate-values chart-diff
 
 REGISTRY ?= ghcr.io/yoonsungnam/gpu-mon
 TAG      ?= dev
@@ -62,3 +62,10 @@ lint: ## Lint Helm charts and Helmfile
 	helm lint charts/metadata-collector
 	helm lint charts/mock-dcgm-exporter
 	helmfile -e homelab lint
+
+validate-values: ## Check override keys match chart defaults
+	./scripts/validate-values-keys.sh homelab
+
+chart-diff: ## Show values diff between chart versions (CHART=repo/name OLD=x NEW=y)
+	@diff <(helm show values $(CHART) --version $(OLD)) \
+	      <(helm show values $(CHART) --version $(NEW)) || true
