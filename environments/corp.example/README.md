@@ -15,18 +15,22 @@ Actual production values live in a separate private repo and are symlinked here 
 | `grafana.yaml.example` | Grafana datasources, dashboards, ingress, and plugins |
 | `vector.yaml.example` | Vector aggregator sources, transforms, and ClickHouse sink |
 | `metadata-collector.yaml.example` | Metadata collector S2/VMware integration |
-| `targets/baremetal-gpu-nodes.json.example` | File SD target list for Baremetal/VM GPU nodes |
+| `targets/baremetal-gpu-nodes.json.example` | File SD target list for Baremetal GPU nodes |
+| `targets/vm-gpu-nodes.json.example` | File SD target list for VMware GPU VMs |
+| `targets/inference-servers.json.example` | File SD target list for inference servers |
 
-All files above are required for `helmfile -e corp sync` to succeed
+All YAML files above are required for `helmfile -e corp sync` to succeed
 (except `metadata-collector.yaml.example`, which is only needed when
 `metadata_collector.enabled: true` in `values.yaml`).
+Target JSON files are required when the corresponding scrape jobs are
+configured in `vmagent.yaml`.
 
 ## Usage
 
 ```bash
 # 1. Copy all examples and fill in real values
 for f in *.example; do cp "$f" "${f%.example}"; done
-cp targets/baremetal-gpu-nodes.json.example targets/baremetal-gpu-nodes.json
+for f in targets/*.example; do cp "$f" "${f%.example}"; done
 
 # 2. Edit with your actual infrastructure details
 vim values.yaml

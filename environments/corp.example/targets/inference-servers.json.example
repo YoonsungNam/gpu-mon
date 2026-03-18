@@ -1,0 +1,13 @@
+[
+  {
+    "targets": [
+      "infer-server-01:8080",
+      "infer-server-02:8080"
+    ],
+    "labels": {
+      "deployment_env": "corp",
+      "platform": "baremetal",
+      "workload_type": "inference"
+    }
+  }
+]

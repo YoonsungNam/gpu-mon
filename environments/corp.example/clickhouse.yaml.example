@@ -2,12 +2,12 @@
 # Copy to environments/corp/clickhouse.yaml (in the private repo)
 # and adjust sizing for your cluster.
 #
-# If cluster.name changes, also update clickhouse.host in defaults.yaml
-# and ClickHouse endpoints in this environment's grafana.yaml and vector.yaml.
+# If cluster.name changes, override clickhouse.host in this environment's
+# values.yaml and update ClickHouse endpoints in grafana.yaml and vector.yaml.
 
 clickhouse:
   cluster:
-    name: gpu-monitoring         # Must match clickhouse.host in defaults.yaml
+    name: gpu-monitoring         # Override clickhouse.host in values.yaml if changed
     layout:
       shardsCount: 2             # Scale shards for write throughput
       replicasCount: 2           # Replicas for HA

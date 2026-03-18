@@ -1,0 +1,14 @@
+[
+  {
+    "targets": [
+      "vm-gpu-01:9400",
+      "vm-gpu-02:9400"
+    ],
+    "labels": {
+      "deployment_env": "corp",
+      "platform": "vmware",
+      "cluster": "YOUR_VCENTER_CLUSTER",
+      "workload_type": "training"
+    }
+  }
+]
