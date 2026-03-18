@@ -27,30 +27,41 @@ gpu-mon (public)                    gpu-mon-corp (private)
 gpu-mon-corp. Helmfile resolves `environments/{{ .Environment.Name }}/` at
 render time, pulling the correct values per environment.
 
+## Current State of gpu-mon-corp
+
+gpu-mon-corp already has **all 7 required values files** plus File SD targets,
+Ansible inventory, and Alertmanager config:
+
+| File | gpu-mon-corp | corp.example |
+|---|---|---|
+| `values.yaml` | Exists | Exists |
+| `vmagent.yaml` | Exists | Exists |
+| `victoriametrics.yaml` | Exists | **Missing** |
+| `clickhouse.yaml` | Exists | **Missing** |
+| `grafana.yaml` | Exists | **Missing** |
+| `vector.yaml` | Exists | **Missing** |
+| `metadata-collector.yaml` | Exists | **Missing** |
+| `targets/baremetal-gpu-nodes.json` | Exists | Exists |
+| `targets/vm-gpu-nodes.json` | Exists | N/A |
+| `targets/inference-servers.json` | Exists | N/A |
+
+**Key finding**: Corp deploys are not broken today. The risks are about
+maintainability — the public repo's documentation and CI don't fully reflect
+the contract that gpu-mon-corp must satisfy.
+
 ---
 
 ## Risk Inventory
 
-### R1. Incomplete corp.example templates (High)
+### R1. Incomplete corp.example templates (Medium — downgraded from High)
 
 **Problem**: Helmfile references 7 per-environment values files, but
-corp.example only provides 2 of them:
+corp.example only provides 2 of them. gpu-mon-corp already has all 7 files,
+so this is not a deploy blocker — but it is a documentation gap.
 
-| File helmfile expects | homelab | corp.example |
-|---|---|---|
-| `values.yaml` | Yes | Yes |
-| `vmagent.yaml` | Yes | Yes |
-| `victoriametrics.yaml` | Yes | **Missing** |
-| `clickhouse.yaml` | Yes | **Missing** |
-| `grafana.yaml` | Yes | **Missing** |
-| `vector.yaml` | Yes | **Missing** |
-| `metadata-collector.yaml` | N/A | **Missing** |
-
-If gpu-mon-corp is missing any of these files, `helmfile -e corp template`
-fails at render time with a file-not-found error.
-
-**Impact**: Corp deploy fails silently on first attempt; new team members
-setting up gpu-mon-corp don't know the full set of required files.
+**Impact**: New team members setting up gpu-mon-corp from scratch don't know
+the full set of required files. The corp.example directory understates the
+actual configuration surface.
 
 **Remediation**: Add `.example` stubs for every file helmfile references.
 Each stub should contain only the keys that differ from defaults, with
@@ -132,6 +143,10 @@ exists and points to a valid directory with all required files before running
 template-rendering error. Confusing for anyone setting up the environment for
 the first time.
 
+**Note**: gpu-mon-corp already has `scripts/setup-symlinks.sh` which creates
+all required symlinks. The gap is on the gpu-mon side — no validation that
+the symlinks are in place before deploy.
+
 **Remediation**: Add a pre-flight check in the `corp-sync` / `corp-deploy`
 Makefile targets that validates:
 1. `environments/corp/` symlink exists and resolves
@@ -166,6 +181,10 @@ ansible-playbook -i inventory/corp.ini \
   playbooks/deploy-node-agents.yaml
 ```
 
+**gpu-mon-corp change required**: Add `ansible/vars/corp.yaml` with
+corp-specific version overrides. Update `scripts/setup-symlinks.sh` to
+create the new symlink path.
+
 ---
 
 ### R7. Gitignore gaps for future corp paths (Low)
@@ -182,10 +201,17 @@ If a new area needs corp-specific files (e.g., `dashboards/corp/`,
 `schemas/corp-*.sql`), a developer could accidentally commit them before
 remembering to update `.gitignore`.
 
+**Note**: gpu-mon-corp's `docs/2-repo-plan.md` shows `**/corp*` as a
+gitignore pattern, but this catch-all does not exist in gpu-mon's actual
+`.gitignore`.
+
 **Impact**: Accidental corp data exposure in a public repo.
 
 **Remediation**: Add a broad catch-all pattern `**/corp/` to `.gitignore`.
 This covers any future subdirectory without requiring per-path additions.
+
+**gpu-mon-corp change required**: Update `docs/2-repo-plan.md` to match
+the actual `.gitignore` patterns after the fix.
 
 ---
 
@@ -207,8 +233,10 @@ image versions in sync.
 ## Remediation Plan — Sequenced PRs
 
 Each PR is scoped to one concern, reviewable in a single pass.
+Changes are split by repo: most PRs only touch gpu-mon (public).
+gpu-mon-corp changes are called out explicitly.
 
-### PR 1: Complete corp.example templates (addresses R1)
+### PR 1: Complete corp.example templates (addresses R1) — gpu-mon only
 
 **Files touched**:
 - `environments/corp.example/victoriametrics.yaml.example` (new)
@@ -225,7 +253,7 @@ values with `YOUR_*_HERE` placeholders, add inline comments for each key.
 
 ---
 
-### PR 2: Add CI smoke test for corp template rendering (addresses R3)
+### PR 2: Add CI smoke test for corp template rendering (addresses R3) — gpu-mon only
 
 **Files touched**:
 - `.github/workflows/helm-test.yaml` (add corp-template-render job)
@@ -238,7 +266,7 @@ Catches missing keys and template errors on every PR.
 
 ---
 
-### PR 3: Add corp deploy pre-flight check (addresses R5)
+### PR 3: Add corp deploy pre-flight check (addresses R5) — gpu-mon only
 
 **Files touched**:
 - `scripts/validate-corp-setup.sh` (new)
@@ -251,7 +279,7 @@ set, exits non-zero with actionable error messages.
 
 ---
 
-### PR 4: Override homelab retention defaults (addresses R4)
+### PR 4: Override homelab retention defaults (addresses R4) — gpu-mon only
 
 **Files touched**:
 - `environments/homelab/values.yaml` (add retention overrides)
@@ -263,31 +291,38 @@ metadata) to homelab values.
 
 ---
 
-### PR 5: Broaden corp gitignore pattern (addresses R7)
+### PR 5: Broaden corp gitignore pattern (addresses R7) — both repos
 
-**Files touched**:
+**gpu-mon files touched**:
 - `.gitignore` (add `**/corp/` catch-all)
+
+**gpu-mon-corp files touched**:
+- `docs/2-repo-plan.md` (update gitignore example to match actual patterns)
 
 **Approach**: Add a single line. Verify existing specific patterns still work
 (they do — gitignore applies all matching patterns).
 
-**Estimated diff**: ~5 lines
+**Estimated diff**: ~5 lines (gpu-mon) + ~5 lines (gpu-mon-corp)
 
 ---
 
-### PR 6: Ansible per-environment variable files (addresses R6)
+### PR 6: Ansible per-environment variable files (addresses R6) — both repos
 
-**Files touched**:
+**gpu-mon files touched**:
 - `ansible/vars/defaults.yaml` (new, extracted from playbook vars)
 - `ansible/vars/corp.yaml.example` (new)
 - `ansible/playbooks/deploy-node-agents.yaml` (remove inline vars, document
   `-e @vars/` usage)
 
-**Estimated diff**: ~80 lines
+**gpu-mon-corp files touched**:
+- `ansible/vars/corp.yaml` (new, corp-specific version overrides)
+- `scripts/setup-symlinks.sh` (add new symlink for `ansible/vars/corp.yaml`)
+
+**Estimated diff**: ~80 lines (gpu-mon) + ~30 lines (gpu-mon-corp)
 
 ---
 
-### PR 7: versions.yaml SSOT and helmfile integration (addresses R2)
+### PR 7: versions.yaml SSOT and helmfile integration (addresses R2) — gpu-mon only
 
 **Files touched**:
 - `versions.yaml` (new — already designed in corp-deployment-strategy.md)
@@ -302,11 +337,28 @@ first (so corp.example templates exist for CI validation). Implement the
 
 ---
 
+## Cross-Repo Impact Summary
+
+| PR | gpu-mon | gpu-mon-corp |
+|---|---|---|
+| PR 1 | corp.example stubs | No change needed |
+| PR 2 | CI smoke test | No change needed |
+| PR 3 | Pre-flight check | No change needed |
+| PR 4 | Homelab retention | No change needed |
+| PR 5 | Gitignore catch-all | Update 2-repo-plan.md |
+| PR 6 | Ansible vars extraction | Add vars/corp.yaml + update setup-symlinks.sh |
+| PR 7 | versions.yaml SSOT | No change needed |
+
+**5 of 7 PRs are gpu-mon only.** Only PR 5 and PR 6 require matching changes
+in gpu-mon-corp, and those changes are small (doc update + new vars file).
+
+---
+
 ## Priority Matrix
 
 | PR | Risk | Severity | Effort | Dependencies |
 |---|---|---|---|---|
-| PR 1 | R1 — Missing corp.example | High | Low | None |
+| PR 1 | R1 — Incomplete corp.example | Medium | Low | None |
 | PR 2 | R3 — No contract validation | High | Low | PR 1 |
 | PR 3 | R5 — No pre-flight check | Medium | Low | None |
 | PR 4 | R4 — Dev retention defaults | Medium | Trivial | None |
