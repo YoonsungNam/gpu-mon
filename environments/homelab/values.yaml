@@ -16,5 +16,9 @@ mock_dcgm:
 metadata_collector:
   enabled: false
 
+# Override default retention to match VictoriaMetrics chart setting (30d)
+retention:
+  metrics_days: 30
+
 # Ingress / access
 grafana_host: grafana.homelab.local
