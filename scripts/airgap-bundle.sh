@@ -2,7 +2,7 @@
 # Generate an Airgap deployment bundle for corp environment.
 # See docs/corp-deployment-strategy.md for the full deployment guide.
 #
-# Requires: docker, helm, helmfile, curl
+# Requires: docker, helm, helmfile, yq, curl
 # Assumes environments/corp/ is symlinked from gpu-mon-corp repo.
 
 set -euo pipefail
@@ -60,10 +60,15 @@ helm repo add vector https://helm.vector.dev 2>/dev/null || true
 helm repo add clickhouse-operator https://docs.altinity.com/clickhouse-operator 2>/dev/null || true
 helm repo update
 
-helm pull victoriametrics/victoria-metrics-cluster --version 0.36.0 -d "${BUNDLE_DIR}/charts/"
-helm pull grafana/grafana --version 10.5.15 -d "${BUNDLE_DIR}/charts/"
-helm pull vector/vector --version 0.50.0 -d "${BUNDLE_DIR}/charts/"
-helm pull clickhouse-operator/altinity-clickhouse-operator --version 0.26.0 -d "${BUNDLE_DIR}/charts/"
+VERSIONS_FILE="versions.yaml"
+helm pull victoriametrics/victoria-metrics-cluster \
+    --version "$(yq '.helm_charts["victoria-metrics-cluster"]' "$VERSIONS_FILE")" -d "${BUNDLE_DIR}/charts/"
+helm pull grafana/grafana \
+    --version "$(yq '.helm_charts["grafana"]' "$VERSIONS_FILE")" -d "${BUNDLE_DIR}/charts/"
+helm pull vector/vector \
+    --version "$(yq '.helm_charts["vector"]' "$VERSIONS_FILE")" -d "${BUNDLE_DIR}/charts/"
+helm pull clickhouse-operator/altinity-clickhouse-operator \
+    --version "$(yq '.helm_charts["altinity-clickhouse-operator"]' "$VERSIONS_FILE")" -d "${BUNDLE_DIR}/charts/"
 
 for chart_dir in charts/*/; do
     [[ -f "${chart_dir}/Chart.yaml" ]] && helm package "${chart_dir}" -d "${BUNDLE_DIR}/charts/"
@@ -73,6 +78,7 @@ done
 echo "[3/5] Copying deploy files..."
 
 cp helmfile.yaml.gotmpl "${BUNDLE_DIR}/deploy/"
+cp versions.yaml "${BUNDLE_DIR}/deploy/"
 cp environments/defaults.yaml "${BUNDLE_DIR}/deploy/"
 mkdir -p "${BUNDLE_DIR}/deploy/environments"
 cp -rL environments/corp "${BUNDLE_DIR}/deploy/environments/corp"
