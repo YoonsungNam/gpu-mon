@@ -42,6 +42,14 @@ for i in $(seq 0 $((count - 1))); do
     fi
     chart_keys=$(yq 'keys | .[]' "$defaults_file" 2>/dev/null | sort)
     chart_label="$chart (local)"
+  elif [[ -f "$chart" ]]; then
+    # Packaged chart archive — read defaults directly from the local .tgz
+    chart_defaults=$(helm show values "$chart" 2>/dev/null)
+    active_keys=$(echo "$chart_defaults" | yq 'keys | .[]' 2>/dev/null)
+    commented_keys=$(echo "$chart_defaults" \
+      | sed -n 's/^# \([a-zA-Z][a-zA-Z0-9_-]*\):.*/\1/p')
+    chart_keys=$(printf '%s\n%s\n' "$active_keys" "$commented_keys" | grep -v '^$' | sort -u)
+    chart_label="$chart (archive)"
   else
     # OSS chart — fetch defaults via helm show values
     if [[ -z "$version" ]]; then
