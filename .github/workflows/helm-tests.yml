@@ -90,6 +90,9 @@ jobs:
           install-kubectl: false
           install-helm-plugins: false
 
+      - name: Install yq
+        uses: mikefarah/yq@v4
+
       - name: Add Helm repositories
         run: |
           helm repo add victoriametrics https://victoriametrics.github.io/helm-charts
@@ -122,6 +125,9 @@ jobs:
 
       - name: Helmfile template (corp.example smoke test)
         run: helmfile -e corp template > /dev/null
+
+      - name: Validate values keys
+        run: ./scripts/validate-values-keys.sh corp
 
   helm-unittest:
     name: helm-unittest
