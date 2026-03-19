@@ -10,10 +10,12 @@
 environments:
   homelab:
     values:
+      - versions.yaml
       - environments/defaults.yaml
       - environments/homelab/values.yaml
   corp:
     values:
+      - versions.yaml
       - environments/defaults.yaml
       - environments/corp/values.yaml  # symlinked from gpu-mon-corp
 
@@ -39,10 +41,10 @@ releases:
   - name: victoriametrics
     namespace: monitoring
     {{ if eq .Environment.Name "corp" }}
-    chart: "{{ .Values.charts_dir }}/victoria-metrics-cluster-0.36.0.tgz"
+    chart: "{{ .Values.charts_dir }}/victoria-metrics-cluster-{{ index .Values.helm_charts "victoria-metrics-cluster" }}.tgz"
     {{ else }}
     chart: victoriametrics/victoria-metrics-cluster
-    version: "0.36.0"
+    version: "{{ index .Values.helm_charts "victoria-metrics-cluster" }}"
     {{ end }}
     values:
       - environments/{{ .Environment.Name }}/victoriametrics.yaml
@@ -58,10 +60,10 @@ releases:
   - name: clickhouse-operator
     namespace: clickhouse
     {{ if eq .Environment.Name "corp" }}
-    chart: "{{ .Values.charts_dir }}/altinity-clickhouse-operator-0.26.0.tgz"
+    chart: "{{ .Values.charts_dir }}/altinity-clickhouse-operator-{{ index .Values.helm_charts "altinity-clickhouse-operator" }}.tgz"
     {{ else }}
     chart: clickhouse-operator/altinity-clickhouse-operator
-    version: "0.26.0"
+    version: "{{ index .Values.helm_charts "altinity-clickhouse-operator" }}"
     {{ end }}
 
   # ─── ClickHouse Cluster ───────────────────────────────────────────────────
@@ -77,10 +79,10 @@ releases:
   - name: grafana
     namespace: monitoring
     {{ if eq .Environment.Name "corp" }}
-    chart: "{{ .Values.charts_dir }}/grafana-10.5.15.tgz"
+    chart: "{{ .Values.charts_dir }}/grafana-{{ index .Values.helm_charts "grafana" }}.tgz"
     {{ else }}
     chart: grafana/grafana
-    version: "10.5.15"
+    version: "{{ index .Values.helm_charts "grafana" }}"
     {{ end }}
     values:
       - environments/{{ .Environment.Name }}/grafana.yaml
@@ -89,10 +91,10 @@ releases:
   - name: vector
     namespace: monitoring
     {{ if eq .Environment.Name "corp" }}
-    chart: "{{ .Values.charts_dir }}/vector-0.50.0.tgz"
+    chart: "{{ .Values.charts_dir }}/vector-{{ index .Values.helm_charts "vector" }}.tgz"
     {{ else }}
     chart: vector/vector
-    version: "0.50.0"
+    version: "{{ index .Values.helm_charts "vector" }}"
     {{ end }}
     values:
       - environments/{{ .Environment.Name }}/vector.yaml

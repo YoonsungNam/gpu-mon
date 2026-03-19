@@ -1,0 +1,27 @@
+# versions.yaml — Single source of truth for all image and chart versions.
+# Read by: helmfile.yaml.gotmpl, CI workflows, corp-sync-images.sh
+# See: docs/corp-deployment-strategy.md (D24)
+
+custom_images:
+  mock-dcgm-exporter: "v1.0.0"
+  metadata-collector: "v1.0.0"
+
+oss_images:
+  victoriametrics/vminsert: "v1.106.1"
+  victoriametrics/vmselect: "v1.106.1"
+  victoriametrics/vmstorage: "v1.106.1"
+  victoriametrics/vmagent: "v1.106.1"
+  victoriametrics/vmalert: "v1.106.1"
+  clickhouse/clickhouse-server: "24.8"
+  altinity/clickhouse-operator: "0.24.0"
+  grafana/grafana: "11.4.0"
+  timberio/vector: "0.42.0-alpine"
+  prom/alertmanager: "v0.27.0"
+  prom/node-exporter: "v1.8.2"
+  registry.k8s.io/kube-state-metrics/kube-state-metrics: "v2.14.0"
+
+helm_charts:
+  victoria-metrics-cluster: "0.36.0"
+  altinity-clickhouse-operator: "0.26.0"
+  grafana: "10.5.15"
+  vector: "0.50.0"
