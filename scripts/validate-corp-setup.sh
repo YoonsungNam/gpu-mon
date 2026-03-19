@@ -14,6 +14,10 @@ REQUIRED_VALUES=(
   clickhouse.yaml
   grafana.yaml
   vector.yaml
+)
+
+# metadata-collector is conditional on metadata_collector.enabled
+OPTIONAL_VALUES=(
   metadata-collector.yaml
 )
 
@@ -41,6 +45,13 @@ if [ ${#missing[@]} -gt 0 ]; then
     echo "  - $f"
   done
 fi
+
+# 2b. Warn about missing optional values files
+for f in "${OPTIONAL_VALUES[@]}"; do
+  if [ ! -f "${CORP_DIR}/${f}" ]; then
+    echo "WARN: Optional file missing: $f (needed if metadata_collector.enabled=true)"
+  fi
+done
 
 # 3. Check that at least one target file exists
 TARGETS_DIR="${CORP_DIR}/targets"

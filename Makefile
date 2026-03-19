@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images lint validate-values chart-diff corp-preflight
+.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images lint validate-values chart-diff corp-preflight corp-diff corp-sync corp-bundle
 
 REGISTRY ?= ghcr.io/yoonsungnam/gpu-mon
 TAG      ?= dev
@@ -45,7 +45,7 @@ corp-diff: corp-preflight ## Show pending Helm changes for corp env (requires gp
 corp-sync: corp-preflight ## Deploy to corp K8s cluster
 	helmfile -e corp sync
 
-corp-bundle: ## Generate Airgap bundle for corp deployment
+corp-bundle: corp-preflight ## Generate Airgap bundle for corp deployment
 	./scripts/airgap-bundle.sh
 
 # ─── Images ──────────────────────────────────────────────────────────────────
