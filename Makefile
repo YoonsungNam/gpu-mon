@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images lint validate-values chart-diff
+.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images lint validate-values chart-diff corp-preflight corp-diff corp-sync corp-bundle
 
 REGISTRY ?= ghcr.io/yoonsungnam/gpu-mon
 TAG      ?= dev
@@ -36,13 +36,16 @@ homelab-destroy: ## Destroy homelab deployment (irreversible)
 
 # ─── corp (requires private repo symlinked) ──────────────────────────────────
 
-corp-diff: ## Show pending Helm changes for corp env (requires gpu-mon-corp symlink)
+corp-preflight: ## Validate corp symlinks and required files
+	./scripts/validate-corp-setup.sh
+
+corp-diff: corp-preflight ## Show pending Helm changes for corp env (requires gpu-mon-corp symlink)
 	helmfile -e corp diff
 
-corp-sync: ## Deploy to corp K8s cluster
+corp-sync: corp-preflight ## Deploy to corp K8s cluster
 	helmfile -e corp sync
 
-corp-bundle: ## Generate Airgap bundle for corp deployment
+corp-bundle: corp-preflight ## Generate Airgap bundle for corp deployment
 	./scripts/airgap-bundle.sh
 
 # ─── Images ──────────────────────────────────────────────────────────────────
