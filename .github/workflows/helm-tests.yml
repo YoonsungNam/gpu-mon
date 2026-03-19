@@ -116,11 +116,15 @@ jobs:
         run: |
           charts_dir="$(pwd)/.ci-charts"
           mkdir -p "$charts_dir"
-          # Keep versions in sync with helmfile.yaml.gotmpl
-          helm pull victoriametrics/victoria-metrics-cluster --version 0.36.0 -d "$charts_dir"
-          helm pull clickhouse-operator/altinity-clickhouse-operator --version 0.26.0 -d "$charts_dir"
-          helm pull grafana/grafana --version 10.5.15 -d "$charts_dir"
-          helm pull vector/vector --version 0.50.0 -d "$charts_dir"
+          # Read chart versions from versions.yaml (SSOT)
+          helm pull victoriametrics/victoria-metrics-cluster \
+            --version "$(yq '.helm_charts.victoria-metrics-cluster' versions.yaml)" -d "$charts_dir"
+          helm pull clickhouse-operator/altinity-clickhouse-operator \
+            --version "$(yq '.helm_charts.altinity-clickhouse-operator' versions.yaml)" -d "$charts_dir"
+          helm pull grafana/grafana \
+            --version "$(yq '.helm_charts.grafana' versions.yaml)" -d "$charts_dir"
+          helm pull vector/vector \
+            --version "$(yq '.helm_charts.vector' versions.yaml)" -d "$charts_dir"
           sed -i "s|^charts_dir:.*|charts_dir: \"$charts_dir\"|" environments/corp/values.yaml
 
       - name: Helmfile template (corp.example smoke test)
