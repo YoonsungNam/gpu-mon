@@ -1,0 +1,21 @@
+---
+# Corp environment variable overrides.
+# Copy to ansible/vars/corp.yaml (in the gpu-mon-corp repo) and fill in
+# real values. Pass after defaults.yaml so these take precedence:
+#
+#   ansible-playbook -i inventory/corp.ini \
+#     -e @vars/defaults.yaml -e @vars/corp.yaml \
+#     playbooks/deploy-node-agents.yaml
+
+# Override versions if corp requires specific builds
+# dcgm_version: "3.3.8-3.6.0-ubuntu22.04"
+# vector_version: "0.42.0"
+
+# Vector aggregator endpoint (use corp-specific host)
+vector_aggregator_host: "YOUR_VECTOR_AGGREGATOR_HOST_HERE"
+# vector_aggregator_port: 6000
+
+# Metadata labels for corp logs
+deployment_env: "corp"
+platform: "baremetal"
+cluster_id: "YOUR_CLUSTER_ID_HERE"

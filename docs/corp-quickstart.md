@@ -27,6 +27,10 @@ cd ~/work/gpu-mon/ansible/inventory/
 ln -s ../../../gpu-mon-corp/ansible/inventory/corp.ini ./corp.ini
 # → Ansible inventory (corp node IPs, SSH config for baremetal/VM agent deployment)
 
+cd ~/work/gpu-mon/ansible/vars/
+ln -s ../../../gpu-mon-corp/ansible/vars/corp.yaml ./corp.yaml
+# → Ansible variable overrides (agent versions, Vector endpoint, metadata labels)
+
 cd ~/work/gpu-mon/alerting/alertmanager/
 ln -s ../../../gpu-mon-corp/alerting/alertmanager/corp.yaml ./corp.yaml
 # → Alertmanager routing (corp notification channels, escalation rules)

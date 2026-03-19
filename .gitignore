@@ -4,6 +4,7 @@
 # ═══════════════════════════════════════
 environments/corp/
 ansible/inventory/corp*
+ansible/vars/corp.yaml
 alerting/alertmanager/corp*
 # Catch-all: block any future corp directories across the repo
 **/corp/
