@@ -5,6 +5,8 @@
 environments/corp/
 ansible/inventory/corp*
 alerting/alertmanager/corp*
+# Catch-all: block any future corp directories across the repo
+**/corp/
 
 # ═══════════════════════════════════════
 # Secrets / sensitive data
