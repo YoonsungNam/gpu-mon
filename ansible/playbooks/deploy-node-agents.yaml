@@ -2,18 +2,21 @@
 # Deploy node-level agents (DCGM Exporter + Vector Agent) to GPU nodes.
 # Works for both Baremetal and VM environments.
 #
+# Variables are loaded from external files (ansible/vars/) instead of inline.
+# Corp can override defaults by passing an additional var file.
+#
 # Usage:
-#   ansible-playbook -i inventory/homelab.ini playbooks/deploy-node-agents.yaml
-#   ansible-playbook -i inventory/corp.ini playbooks/deploy-node-agents.yaml  # (symlinked)
+#   ansible-playbook -i inventory/homelab.ini \
+#     -e @vars/defaults.yaml \
+#     playbooks/deploy-node-agents.yaml
+#
+#   ansible-playbook -i inventory/corp.ini \
+#     -e @vars/defaults.yaml -e @vars/corp.yaml \
+#     playbooks/deploy-node-agents.yaml
 
 - name: Deploy GPU monitoring node agents
   hosts: baremetal_gpu_nodes
   become: true
-  vars:
-    dcgm_version: "3.3.8-3.6.0-ubuntu22.04"
-    vector_version: "0.42.0"
-    vector_aggregator_host: "{{ hostvars['k8s-control']['ansible_host'] | default('vector-aggregator.monitoring.svc') }}"
-    vector_aggregator_port: 6000
 
   roles:
     - dcgm-exporter

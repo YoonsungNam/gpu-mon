@@ -1,0 +1,19 @@
+---
+# Default variables for GPU monitoring node agent deployment.
+# Override per-environment by passing additional var files:
+#
+#   ansible-playbook -e @vars/defaults.yaml playbooks/deploy-node-agents.yaml
+#   ansible-playbook -e @vars/defaults.yaml -e @vars/corp.yaml playbooks/deploy-node-agents.yaml
+
+# Agent versions
+dcgm_version: "3.3.8-3.6.0-ubuntu22.04"
+vector_version: "0.42.0"
+
+# Vector aggregator endpoint
+vector_aggregator_host: "{{ hostvars['k8s-control']['ansible_host'] | default('vector-aggregator.monitoring.svc') }}"
+vector_aggregator_port: 6000
+
+# Metadata labels injected into forwarded logs
+deployment_env: "homelab"
+platform: "baremetal"
+cluster_id: "default"
