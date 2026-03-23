@@ -3,15 +3,15 @@
 # See: docs/corp-deployment-strategy.md (D24)
 
 custom_images:
-  mock-dcgm-exporter: "v1.0.0"
-  metadata-collector: "v1.0.0"
+  mock-dcgm-exporter: "main"
+  metadata-collector: "main"
 
 oss_images:
-  victoriametrics/vminsert: "v1.106.1"
-  victoriametrics/vmselect: "v1.106.1"
-  victoriametrics/vmstorage: "v1.106.1"
-  victoriametrics/vmagent: "v1.106.1"
-  victoriametrics/vmalert: "v1.106.1"
+  victoriametrics/vminsert: "v1.106.1-cluster"
+  victoriametrics/vmselect: "v1.106.1-cluster"
+  victoriametrics/vmstorage: "v1.106.1-cluster"
+  victoriametrics/vmagent: "v1.106.1-cluster"
+  victoriametrics/vmalert: "v1.106.1-cluster"
   clickhouse/clickhouse-server: "24.8"
   altinity/clickhouse-operator: "0.24.0"
   grafana/grafana: "11.4.0"
