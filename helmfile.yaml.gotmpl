@@ -70,6 +70,7 @@ releases:
   - name: clickhouse
     namespace: clickhouse
     chart: charts/clickhouse-cluster
+    disableValidation: true  # CRD from clickhouse-operator may not exist during first diff
     needs:
       - clickhouse/clickhouse-operator
     values:
