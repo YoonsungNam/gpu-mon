@@ -1,9 +1,10 @@
 SHELL := /bin/bash
-.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images lint validate-values chart-diff corp-preflight corp-diff corp-sync corp-deploy corp-bundle
+.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images lint validate-values chart-diff corp-preflight corp-diff corp-sync corp-deploy corp-pull-charts corp-bundle
 
 REGISTRY      ?= ghcr.io/yoonsungnam/gpu-mon
 TAG           ?= dev
-CORP_REGISTRY ?= registry.corp.internal
+CORP_REGISTRY  ?= registry.corp.internal
+CORP_CHARTS_DIR ?= /opt/gpu-mon/charts
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -46,8 +47,12 @@ corp-diff: corp-preflight ## Show pending Helm changes for corp env (requires gp
 corp-sync: corp-preflight ## Deploy to corp K8s cluster
 	helmfile -e corp sync
 
-corp-deploy: corp-preflight ## Sync images + deploy to corp cluster (one-touch)
+corp-pull-charts: corp-preflight ## Pull OSS Helm charts to local .tgz cache
+	./scripts/corp-pull-charts.sh $(CORP_CHARTS_DIR)
+
+corp-deploy: corp-preflight ## Sync images + pull charts + deploy to corp cluster (one-touch)
 	./scripts/corp-sync-images.sh $(CORP_REGISTRY)
+	./scripts/corp-pull-charts.sh $(CORP_CHARTS_DIR)
 	helmfile -e corp diff
 	helmfile -e corp sync
 
