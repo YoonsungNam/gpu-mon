@@ -9,9 +9,12 @@
 #
 # Environment variables:
 #   REGISTRY  — source registry for custom images (default: ghcr.io/yoonsungnam/gpu-mon)
-#   PREFIX    — optional path prefix inserted between registry and image path
-#               e.g. PREFIX=gpu-mon → registry.corp.internal/gpu-mon/victoriametrics/vmagent:tag
+#   PREFIX    — optional path prefix inserted between registry and image path.
 #               Without PREFIX, original image paths are preserved as-is.
+#               With PREFIX, the full source path (including registry host for
+#               non-DockerHub images) is preserved under the prefix:
+#                 OSS:    DEST/PREFIX/victoriametrics/vmagent:tag
+#                 Custom: DEST/PREFIX/ghcr.io/yoonsungnam/gpu-mon/mock-dcgm-exporter:tag
 #
 # Requires: docker, yq
 set -euo pipefail
@@ -72,10 +75,12 @@ echo "--- Custom images ---"
 while IFS=': ' read -r image tag; do
   [[ -z "$image" ]] && continue
   src="${SRC_REGISTRY}/${image}:${tag}"
-  # With PREFIX: DEST/PREFIX/image:tag (flat layout under prefix)
-  # Without PREFIX: DEST/org/repo/image:tag (preserve GHCR path)
+  # Without PREFIX: strip registry host, keep org/repo path
+  #   e.g. DEST/yoonsungnam/gpu-mon/mock-dcgm-exporter:tag
+  # With PREFIX: preserve full source path (including registry host) under prefix
+  #   e.g. DEST/PREFIX/ghcr.io/yoonsungnam/gpu-mon/mock-dcgm-exporter:tag
   if [ -n "$PREFIX" ]; then
-    dst="${DEST_BASE}/${image}:${tag}"
+    dst="${DEST_BASE}/${SRC_REGISTRY}/${image}:${tag}"
   else
     dst="${DEST}/${SRC_REGISTRY#*/}/${image}:${tag}"
   fi
