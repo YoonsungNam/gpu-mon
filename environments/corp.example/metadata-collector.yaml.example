@@ -5,8 +5,7 @@
 
 replicaCount: 1
 
-image:
-  tag: "latest"                    # Pin to match image_tag in values.yaml
+# image.tag is injected from versions.yaml by helmfile for corp deployments.
 
 config:
   clickhouse:
