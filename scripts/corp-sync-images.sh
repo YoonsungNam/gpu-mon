@@ -5,11 +5,20 @@
 #
 # Usage: ./scripts/corp-sync-images.sh <corp-registry>
 # Example: ./scripts/corp-sync-images.sh registry.corp.internal
+#          PREFIX=gpu-mon ./scripts/corp-sync-images.sh registry.corp.internal
+#
+# Environment variables:
+#   REGISTRY  — source registry for custom images (default: ghcr.io/yoonsungnam/gpu-mon)
+#   PREFIX    — optional path prefix inserted between registry and image path
+#               e.g. PREFIX=gpu-mon → registry.corp.internal/gpu-mon/victoriametrics/vmagent:tag
+#               Without PREFIX, original image paths are preserved as-is.
+#
 # Requires: docker, yq
 set -euo pipefail
 
 DEST="${1:?Usage: ./scripts/corp-sync-images.sh <corp-registry>}"
 SRC_REGISTRY="${REGISTRY:-ghcr.io/yoonsungnam/gpu-mon}"
+PREFIX="${PREFIX:-}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSIONS_FILE="${REPO_ROOT}/versions.yaml"
 
@@ -28,7 +37,15 @@ done
 echo "=== Syncing images to ${DEST} ==="
 echo "Source registry: ${SRC_REGISTRY}"
 echo "Versions file:  ${VERSIONS_FILE}"
+[ -n "$PREFIX" ] && echo "Path prefix:    ${PREFIX}"
 echo ""
+
+# Build destination base: DEST or DEST/PREFIX
+if [ -n "$PREFIX" ]; then
+  DEST_BASE="${DEST}/${PREFIX}"
+else
+  DEST_BASE="${DEST}"
+fi
 
 errors=0
 
@@ -42,9 +59,9 @@ while IFS=': ' read -r image tag; do
     errors=1
     continue
   fi
-  docker tag "${image}:${tag}" "${DEST}/${image}:${tag}"
-  if ! docker push "${DEST}/${image}:${tag}"; then
-    echo "  ERROR: failed to push ${DEST}/${image}:${tag}"
+  docker tag "${image}:${tag}" "${DEST_BASE}/${image}:${tag}"
+  if ! docker push "${DEST_BASE}/${image}:${tag}"; then
+    echo "  ERROR: failed to push ${DEST_BASE}/${image}:${tag}"
     errors=1
   fi
 done < <(yq '.oss_images | to_entries | .[] | .key + ": " + .value' "$VERSIONS_FILE")
@@ -55,8 +72,13 @@ echo "--- Custom images ---"
 while IFS=': ' read -r image tag; do
   [[ -z "$image" ]] && continue
   src="${SRC_REGISTRY}/${image}:${tag}"
-  # Strip the registry host, keep the org/repo path (yoonsungnam/gpu-mon/<image>)
-  dst="${DEST}/${SRC_REGISTRY#*/}/${image}:${tag}"
+  # With PREFIX: DEST/PREFIX/image:tag (flat layout under prefix)
+  # Without PREFIX: DEST/org/repo/image:tag (preserve GHCR path)
+  if [ -n "$PREFIX" ]; then
+    dst="${DEST_BASE}/${image}:${tag}"
+  else
+    dst="${DEST}/${SRC_REGISTRY#*/}/${image}:${tag}"
+  fi
   echo "  ${src} → ${dst}"
   if ! docker pull "${src}"; then
     echo "  ERROR: failed to pull ${src}"
