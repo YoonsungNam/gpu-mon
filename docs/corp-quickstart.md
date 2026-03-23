@@ -53,11 +53,46 @@ make corp-deploy CORP_REGISTRY=registry.corp.internal
 kubectl -n monitoring get pods
 ```
 
+## Grafana plugin carrier image
+
+In corp, Grafana runs with `grafana_plugins_init: true`, so plugins are loaded
+from the `grafana-plugins` carrier image instead of being downloaded from
+grafana.com at pod startup.
+
+Build and publish that image from an internet-connected machine when either of
+these change:
+
+- First-time corp setup for this branch/tag
+- `versions.yaml -> grafana_plugins`
+- `src/grafana-plugins/Dockerfile`
+
+```bash
+cd ~/work/gpu-mon
+
+# Build and publish the carrier image to GHCR (or your chosen REGISTRY)
+make build-grafana-plugins REGISTRY=ghcr.io/yoonsungnam/gpu-mon TAG=main
+make push-grafana-plugins REGISTRY=ghcr.io/yoonsungnam/gpu-mon TAG=main
+```
+
+Notes:
+
+- `make corp-deploy` mirrors `custom_images.grafana-plugins` from GHCR into the
+  corp registry, but it does not build that image locally.
+- The tag used by corp deploy comes from `versions.yaml -> custom_images.grafana-plugins`.
+- The plugin versions baked into the carrier image come from
+  `versions.yaml -> grafana_plugins`.
+
 ## What `make corp-deploy` does
 
-1. `corp-sync-images.sh` reads `versions.yaml`, pulls images from GHCR/DockerHub, pushes to corp registry
-2. `helmfile -e corp diff` previews changes
-3. `helmfile -e corp sync` deploys to the cluster
+1. `corp-sync-images.sh` reads `versions.yaml`, pulls images from GHCR/DockerHub, and pushes them to the corp registry
+2. This includes the `grafana-plugins` carrier image when it is listed under `custom_images`
+3. `helmfile -e corp diff` previews changes
+4. `helmfile -e corp sync` deploys to the cluster
+
+If `grafana_plugins_init: true` is set in `environments/corp/values.yaml`, the
+Grafana release mounts an `emptyDir`, runs an init container from the
+`grafana-plugins` image, and starts Grafana with `plugins: []` so no internet
+download is required from the cluster.
 
 ## Rollback
 

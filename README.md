@@ -113,11 +113,14 @@ This repo provides a clean separation between public infrastructure code and pri
 
 The architecture supports:
 - **Air-gapped deployment** via `scripts/airgap-bundle.sh`
+- **Air-gapped Grafana plugins** via the `grafana-plugins` carrier image and `grafana_plugins_init`
 - **Batch scheduler metadata integration** (adapter pattern in `src/metadata-collector/`)
 - **VMware vCenter inventory** collection
 - **File-based Service Discovery** managed by Ansible for non-K8s nodes
 
 See [docs/extending-to-production.md](docs/extending-to-production.md) for the full guide.
+For the corp airgap deploy flow, including Grafana plugin handling, see
+[docs/corp-quickstart.md](docs/corp-quickstart.md).
 
 ## Dashboards
 
