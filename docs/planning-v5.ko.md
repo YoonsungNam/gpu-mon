@@ -233,7 +233,7 @@ scrape_configs:
     scrape_interval: 15s
     file_sd_configs:
       - files: ["/etc/vmagent/sd/baremetal-gpu-nodes.json"]
-        refresh_interval: 60s    # 파일 변경 감지 주기
+        # Note: refresh interval은 CLI 플래그 -promscrape.fileSDCheckInterval로 설정 (기본 60s)
     relabel_configs:
       - source_labels: [__address__]
         regex: "(.+):.*"
@@ -242,7 +242,6 @@ scrape_configs:
   - job_name: "baremetal-node-exporter"
     file_sd_configs:
       - files: ["/etc/vmagent/sd/baremetal-node-exporters.json"]
-        refresh_interval: 60s
     relabel_configs:
       - source_labels: [__address__]
         regex: "(.+):.*"
@@ -254,7 +253,6 @@ scrape_configs:
   - job_name: "vm-dcgm"
     file_sd_configs:
       - files: ["/etc/vmagent/sd/vm-gpu-nodes.json"]
-        refresh_interval: 60s
 
   # ────────────────────────────────────────
   # K8s 클러스터 (K8s SD 자동)
@@ -283,7 +281,6 @@ scrape_configs:
   - job_name: "inference-servers"
     file_sd_configs:
       - files: ["/etc/vmagent/sd/inference-servers.json"]
-        refresh_interval: 60s
 ```
 
 **File-based Service Discovery (Ansible 관리):**
@@ -322,7 +319,7 @@ File SD 운영 흐름:
 
   1. 노드 추가/제거 시:
      Ansible playbook → JSON 파일 갱신 → K8s ConfigMap 업데이트
-     vmagent이 refresh_interval (60초)마다 파일을 다시 읽음
+     vmagent이 60초마다 파일을 다시 읽음 (-promscrape.fileSDCheckInterval로 설정)
      → 자동으로 새 노드 scrape 시작 / 제거된 노드 scrape 중단
 
   2. scrape 주기/라벨 변경 시:
