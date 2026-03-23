@@ -9,6 +9,9 @@ image:
 remoteWrite:
   - url: "http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prometheus/"
 
+# Extra CLI flags passed to vmagent (e.g. -promscrape.fileSDCheckInterval=60s)
+extraArgs: []
+
 # Full vmagent scrape configuration (merged by environment values)
 scrapeConfig: {}
 

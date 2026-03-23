@@ -6,6 +6,9 @@ replicaCount: 2   # HA pair
 remoteWrite:
   - url: "http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prometheus/"
 
+extraArgs:
+  - "-promscrape.fileSDCheckInterval=60s"
+
 scrapeConfig:
   global:
     scrape_interval: 15s
@@ -15,7 +18,6 @@ scrapeConfig:
     - job_name: "baremetal-dcgm"
       file_sd_configs:
         - files: ["/etc/vmagent/sd/baremetal-gpu-nodes.json"]
-          refresh_interval: 60s
       relabel_configs:
         - source_labels: [__address__]
           regex: "(.+):.*"
@@ -24,7 +26,6 @@ scrapeConfig:
     - job_name: "baremetal-node-exporter"
       file_sd_configs:
         - files: ["/etc/vmagent/sd/baremetal-gpu-nodes.json"]
-          refresh_interval: 60s
       relabel_configs:
         - source_labels: [__address__]
           regex: "(.+):[0-9]+"
@@ -38,13 +39,11 @@ scrapeConfig:
     - job_name: "vm-dcgm"
       file_sd_configs:
         - files: ["/etc/vmagent/sd/vm-gpu-nodes.json"]
-          refresh_interval: 60s
 
     # ── Inference servers ──────────────────────────────────────────────────
     - job_name: "inference-servers"
       file_sd_configs:
         - files: ["/etc/vmagent/sd/inference-servers.json"]
-          refresh_interval: 60s
       relabel_configs:
         - source_labels: [__address__]
           regex: "(.+):.*"

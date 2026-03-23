@@ -28,6 +28,9 @@ spec:
             - "-remoteWrite.url={{ .url }}"
             {{- end }}
             - "-httpListenAddr=:{{ .Values.service.port }}"
+            {{- range .Values.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}

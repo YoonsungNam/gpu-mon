@@ -233,7 +233,7 @@ scrape_configs:
     scrape_interval: 15s
     file_sd_configs:
       - files: ["/etc/vmagent/sd/baremetal-gpu-nodes.json"]
-        refresh_interval: 60s    # File change detection interval
+        # Note: refresh interval is set via CLI flag -promscrape.fileSDCheckInterval (default 60s)
     relabel_configs:
       - source_labels: [__address__]
         regex: "(.+):.*"
@@ -242,7 +242,6 @@ scrape_configs:
   - job_name: "baremetal-node-exporter"
     file_sd_configs:
       - files: ["/etc/vmagent/sd/baremetal-node-exporters.json"]
-        refresh_interval: 60s
     relabel_configs:
       - source_labels: [__address__]
         regex: "(.+):.*"
@@ -254,7 +253,6 @@ scrape_configs:
   - job_name: "vm-dcgm"
     file_sd_configs:
       - files: ["/etc/vmagent/sd/vm-gpu-nodes.json"]
-        refresh_interval: 60s
 
   # ────────────────────────────────────────
   # K8s Clusters (K8s SD auto)
@@ -283,7 +281,6 @@ scrape_configs:
   - job_name: "inference-servers"
     file_sd_configs:
       - files: ["/etc/vmagent/sd/inference-servers.json"]
-        refresh_interval: 60s
 ```
 
 **File-based Service Discovery (Ansible-managed):**
@@ -322,7 +319,7 @@ File SD Operations Flow:
 
   1. When nodes are added/removed:
      Ansible playbook → Update JSON file → Update K8s ConfigMap
-     vmagent re-reads the file every refresh_interval (60 seconds)
+     vmagent re-reads the file every 60s (set via -promscrape.fileSDCheckInterval)
      → Automatically starts scraping new nodes / stops scraping removed nodes
 
   2. When scrape interval/labels change:
