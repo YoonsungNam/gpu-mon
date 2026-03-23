@@ -173,17 +173,17 @@ docker info
 
 ```bash
 # USB로 복사
-cp gpu-monitoring-airgap-*.tar.gz /mnt/usb/
+cp gpu-mon-airgap-*.tar.gz /mnt/usb/
 
 # 또는 SCP (사내 네트워크에 접근 가능한 jump 서버 경유)
-scp gpu-monitoring-airgap-*.tar.gz jumphost:/tmp/
+scp gpu-mon-airgap-*.tar.gz jumphost:/tmp/
 ```
 
 ### 사내 서버에서 설치
 
 ```bash
 # 1. 번들 압축 해제
-tar xzf gpu-monitoring-airgap-*.tar.gz
+tar xzf gpu-mon-airgap-*.tar.gz
 cd airgap-bundle/
 
 # 2. 설치 (사내 레지스트리 URL 인자로 전달)

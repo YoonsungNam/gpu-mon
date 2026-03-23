@@ -42,10 +42,12 @@ while IFS=': ' read -r image tag; do
     OSS_IMAGES+=("${image}:${tag}")
 done < <(yq '.oss_images | to_entries | .[] | .key + ": " + .value' "$VERSIONS_FILE")
 
+# Custom images use $TAG (matching helmfile's image_tag), not versions.yaml,
+# so the bundle and deploy use the same tag source.
 CUSTOM_IMAGES=()
-while IFS=': ' read -r image tag; do
+while IFS=': ' read -r image _; do
     [[ -z "$image" ]] && continue
-    CUSTOM_IMAGES+=("${REGISTRY}/${image}:${tag}")
+    CUSTOM_IMAGES+=("${REGISTRY}/${image}:${TAG}")
 done < <(yq '.custom_images | to_entries | .[] | .key + ": " + .value' "$VERSIONS_FILE")
 
 ALL_IMAGES=("${OSS_IMAGES[@]}" "${CUSTOM_IMAGES[@]}")
