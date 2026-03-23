@@ -5,6 +5,7 @@
 custom_images:
   mock-dcgm-exporter: "main"
   metadata-collector: "main"
+  grafana-plugins: "main"
 
 oss_images:
   victoriametrics/vminsert: "v1.106.1-cluster"
@@ -25,6 +26,10 @@ helm_charts:
   altinity-clickhouse-operator: "0.26.0"
   grafana: "10.5.15"
   vector: "0.50.0"
+
+grafana_plugins:
+  grafana-clickhouse-datasource: "4.14.0"
+  victoriametrics-datasource: "0.22.0"
 
 tools:
   helm: "v3.16.4"

@@ -86,6 +86,22 @@ releases:
     {{ end }}
     values:
       - environments/{{ .Environment.Name }}/grafana.yaml
+    {{ if .Values.grafana_plugins_init }}
+      - plugins: []
+        initContainers:
+          - name: install-plugins
+            image: "{{ .Values.image_registry }}/grafana-plugins:{{ index .Values.custom_images "grafana-plugins" }}"
+            command: ["sh", "-c", "cp -r /plugins/* /grafana-plugins/"]
+            volumeMounts:
+              - name: grafana-plugins
+                mountPath: /grafana-plugins
+        extraVolumeMounts:
+          - name: grafana-plugins
+            mountPath: /var/lib/grafana/plugins
+        extraVolumes:
+          - name: grafana-plugins
+            emptyDir: {}
+    {{ end }}
 
   # ─── Vector Aggregator ────────────────────────────────────────────────────
   - name: vector

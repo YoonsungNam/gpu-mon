@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images lint validate-values chart-diff corp-preflight corp-diff corp-sync corp-deploy corp-pull-charts corp-bundle
+.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images build-grafana-plugins lint validate-values chart-diff corp-preflight corp-diff corp-sync corp-deploy corp-pull-charts corp-bundle
 
 REGISTRY        ?= ghcr.io/yoonsungnam/gpu-mon
 TAG             ?= dev
@@ -65,6 +65,12 @@ build-images: ## Build all custom Docker images
 
 push-images: ## Push images to registry
 	./scripts/build-images.sh $(REGISTRY) $(TAG) --push
+
+build-grafana-plugins: ## Build Grafana plugin carrier image (airgap)
+	./scripts/build-grafana-plugins.sh $(REGISTRY) $(TAG)
+
+push-grafana-plugins: ## Push Grafana plugin carrier image
+	./scripts/build-grafana-plugins.sh $(REGISTRY) $(TAG) --push
 
 # ─── Validate ────────────────────────────────────────────────────────────────
 

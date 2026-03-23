@@ -110,7 +110,8 @@ services:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_AUTH_ANONYMOUS_ENABLED: "false"
-      GF_INSTALL_PLUGINS: "grafana-clickhouse-datasource"
+      # Versions pinned to match versions.yaml grafana_plugins section
+      GF_INSTALL_PLUGINS: "grafana-clickhouse-datasource 4.14.0,victoriametrics-datasource 0.22.0"
     ports:
       - "3000:3000"
     volumes:

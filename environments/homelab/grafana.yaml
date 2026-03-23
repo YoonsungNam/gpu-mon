@@ -32,8 +32,10 @@ dashboardProviders:
         options:
           path: /var/lib/grafana/dashboards/gpu-mon
 
+# Versions pinned to match versions.yaml grafana_plugins section
 plugins:
-  - grafana-clickhouse-datasource
+  - grafana-clickhouse-datasource 4.14.0
+  - victoriametrics-datasource 0.22.0
 
 resources:
   requests:

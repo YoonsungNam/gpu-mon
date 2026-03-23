@@ -16,6 +16,9 @@ metadata_collector:
 mock_dcgm:
   enabled: false         # Use real DCGM exporters in production
 
+# Airgap: load Grafana plugins via init container (requires grafana-plugins image)
+grafana_plugins_init: true
+
 # Grafana
 grafana_host: "grafana.monitoring.YOUR_DOMAIN_HERE"
 

@@ -14,6 +14,10 @@ metadata_collector:
 mock_dcgm:
   enabled: false
 
+# Airgap: load Grafana plugins via init container instead of online download.
+# Requires the grafana-plugins carrier image (make build-grafana-plugins).
+grafana_plugins_init: false
+
 # Monitoring namespace
 namespace: monitoring
 

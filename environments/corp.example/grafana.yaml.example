@@ -36,8 +36,12 @@ dashboardProviders:
         options:
           path: /var/lib/grafana/dashboards/gpu-mon
 
+# Versions pinned to match versions.yaml grafana_plugins section.
+# When grafana_plugins_init: true is set in values.yaml, helmfile overrides this
+# list to [] and injects an init container that loads plugins from the carrier image.
 plugins:
-  - grafana-clickhouse-datasource
+  - grafana-clickhouse-datasource 4.14.0
+  - victoriametrics-datasource 0.22.0
 
 ingress:
   enabled: true
