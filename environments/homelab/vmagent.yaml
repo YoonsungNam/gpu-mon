@@ -50,10 +50,10 @@ scrapeConfig:
     # ── File SD: Baremetal GPU nodes (Ansible-managed) ────────────────────
     # Used in corp/homelab when baremetal nodes exist.
     # Empty in homelab (mock exporter handles this role).
+    # Note: refresh interval is set via extraArgs (-promscrape.fileSDCheckInterval).
     # - job_name: "baremetal-dcgm"
     #   file_sd_configs:
     #     - files: ["/etc/vmagent/sd/baremetal-gpu-nodes.json"]
-    #       refresh_interval: 60s
 
 resources:
   requests:
