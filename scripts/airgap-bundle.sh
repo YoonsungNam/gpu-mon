@@ -12,6 +12,20 @@ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 BUNDLE_NAME="gpu-mon-airgap-${TIMESTAMP}"
 TAG="${TAG:-latest}"
 REGISTRY="${REGISTRY:-ghcr.io/yoonsungnam/gpu-mon}"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+VERSIONS_FILE="${REPO_ROOT}/versions.yaml"
+
+if [ ! -f "$VERSIONS_FILE" ]; then
+  echo "ERROR: versions.yaml not found at $VERSIONS_FILE"
+  exit 1
+fi
+
+for cmd in docker yq; do
+  if ! command -v "$cmd" &>/dev/null; then
+    echo "ERROR: $cmd is required but not found in PATH"
+    exit 1
+  fi
+done
 
 echo "=== GPU Monitoring Airgap Bundle ==="
 echo "Tag: ${TAG}, Registry: ${REGISTRY}"
@@ -19,27 +33,20 @@ echo "Tag: ${TAG}, Registry: ${REGISTRY}"
 rm -rf "${BUNDLE_DIR}"
 mkdir -p "${BUNDLE_DIR}"/{images,charts,deploy,tools}
 
-# ── 1. Container images ───────────────────────────────────────────────────────
+# ── 1. Container images (read from versions.yaml) ─────────────────────────────
 echo "[1/5] Pulling and saving container images..."
 
-OSS_IMAGES=(
-    "victoriametrics/vminsert:v1.106.1"
-    "victoriametrics/vmselect:v1.106.1"
-    "victoriametrics/vmstorage:v1.106.1"
-    "victoriametrics/vmagent:v1.106.1"
-    "victoriametrics/vmalert:v1.106.1"
-    "clickhouse/clickhouse-server:24.8"
-    "altinity/clickhouse-operator:0.24.0"
-    "grafana/grafana:11.4.0"
-    "timberio/vector:0.42.0-alpine"
-    "prom/alertmanager:v0.27.0"
-    "prom/node-exporter:v1.8.2"
-    "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.14.0"
-)
-CUSTOM_IMAGES=(
-    "${REGISTRY}/mock-dcgm-exporter:${TAG}"
-    "${REGISTRY}/metadata-collector:${TAG}"
-)
+OSS_IMAGES=()
+while IFS=': ' read -r image tag; do
+    [[ -z "$image" ]] && continue
+    OSS_IMAGES+=("${image}:${tag}")
+done < <(yq '.oss_images | to_entries | .[] | .key + ": " + .value' "$VERSIONS_FILE")
+
+CUSTOM_IMAGES=()
+while IFS=': ' read -r image tag; do
+    [[ -z "$image" ]] && continue
+    CUSTOM_IMAGES+=("${REGISTRY}/${image}:${tag}")
+done < <(yq '.custom_images | to_entries | .[] | .key + ": " + .value' "$VERSIONS_FILE")
 
 ALL_IMAGES=("${OSS_IMAGES[@]}" "${CUSTOM_IMAGES[@]}")
 
@@ -60,7 +67,6 @@ helm repo add vector https://helm.vector.dev 2>/dev/null || true
 helm repo add clickhouse-operator https://docs.altinity.com/clickhouse-operator 2>/dev/null || true
 helm repo update
 
-VERSIONS_FILE="versions.yaml"
 helm pull victoriametrics/victoria-metrics-cluster \
     --version "$(yq '.helm_charts["victoria-metrics-cluster"]' "$VERSIONS_FILE")" -d "${BUNDLE_DIR}/charts/"
 helm pull grafana/grafana \
@@ -89,8 +95,8 @@ cp -r alerting/ "${BUNDLE_DIR}/deploy/alerting/"
 # ── 4. Tool binaries ──────────────────────────────────────────────────────────
 echo "[4/5] Downloading tool binaries (linux/amd64)..."
 
-HELM_VER="v3.16.4"
-HELMFILE_VER="v0.169.2"
+HELM_VER="$(yq '.tools.helm' "$VERSIONS_FILE")"
+HELMFILE_VER="$(yq '.tools.helmfile' "$VERSIONS_FILE")"
 
 curl -fsSL "https://get.helm.sh/helm-${HELM_VER}-linux-amd64.tar.gz" | \
     tar xz -C "${BUNDLE_DIR}/tools/" linux-amd64/helm --strip-components=1

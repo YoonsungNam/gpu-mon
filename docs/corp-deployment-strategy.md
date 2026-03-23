@@ -232,13 +232,13 @@ echo "=== Sync complete ==="
 ### Makefile Targets
 
 ```makefile
-corp-deploy: ## Sync images + deploy to corp cluster (one-touch)
+corp-deploy: corp-preflight ## Sync images + deploy to corp cluster (one-touch)
 	./scripts/corp-sync-images.sh $(CORP_REGISTRY)
 	helmfile -e corp diff
 	helmfile -e corp sync
 
-corp-sync: ## Sync images only (no deploy)
-	./scripts/corp-sync-images.sh $(CORP_REGISTRY)
+corp-sync: corp-preflight ## Deploy to corp K8s cluster (helmfile only, no image sync)
+	helmfile -e corp sync
 ```
 
 ### Daily Workflow
