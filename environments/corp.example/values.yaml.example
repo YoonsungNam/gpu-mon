@@ -5,8 +5,9 @@
 image_registry: "YOUR_INTERNAL_REGISTRY_HERE"   # e.g. registry.internal.corp.com
 image_tag: "v1.0.0"
 
-# Airgap: path to pre-downloaded Helm chart .tgz files
-charts_dir: "/opt/gpu-mon/charts"
+# Airgap only: path to pre-downloaded Helm chart .tgz files.
+# Leave empty (or omit) to pull charts from upstream repos at deploy time.
+# charts_dir: "/opt/gpu-mon/charts"
 
 # Feature flags
 metadata_collector:

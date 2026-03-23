@@ -4,7 +4,7 @@
 image_registry: ghcr.io/yoonsungnam/gpu-mon
 image_tag: latest
 
-# Set to local chart .tgz directory path in corp/airgap environments
+# Set to local chart .tgz directory path for airgap deploys (leave empty for online)
 charts_dir: ""
 
 # Feature flags
