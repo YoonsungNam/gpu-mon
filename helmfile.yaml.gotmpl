@@ -70,6 +70,7 @@ releases:
   - name: clickhouse
     namespace: clickhouse
     chart: charts/clickhouse-cluster
+    disableValidationOnInstall: true  # CRD may be absent until clickhouse-operator installs it
     needs:
       - clickhouse/clickhouse-operator
     values:
