@@ -47,12 +47,11 @@ corp-diff: corp-preflight ## Show pending Helm changes for corp env (requires gp
 corp-sync: corp-preflight ## Deploy to corp K8s cluster
 	helmfile -e corp sync
 
-corp-pull-charts: corp-preflight ## Pull OSS Helm charts to local .tgz cache
+corp-pull-charts: corp-preflight ## Pull OSS Helm charts to local .tgz cache (airgap prep)
 	./scripts/corp-pull-charts.sh $(CORP_CHARTS_DIR)
 
-corp-deploy: corp-preflight ## Sync images + pull charts + deploy to corp cluster (one-touch)
+corp-deploy: corp-preflight ## Sync images + deploy to corp cluster (one-touch)
 	./scripts/corp-sync-images.sh $(CORP_REGISTRY)
-	./scripts/corp-pull-charts.sh $(CORP_CHARTS_DIR)
 	helmfile -e corp diff
 	helmfile -e corp sync
 

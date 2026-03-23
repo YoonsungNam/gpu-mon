@@ -21,9 +21,9 @@ environments:
 
 ---
 
-# Helm repositories (skipped in corp airgap mode; charts come from local .tgz)
+# Helm repositories (skipped when charts_dir is set for airgap deploys)
 repositories:
-  {{ if ne .Environment.Name "corp" }}
+  {{ if not .Values.charts_dir }}
   - name: victoriametrics
     url: https://victoriametrics.github.io/helm-charts
   - name: grafana
@@ -40,7 +40,7 @@ releases:
   # ─── VictoriaMetrics Cluster ──────────────────────────────────────────────
   - name: victoriametrics
     namespace: monitoring
-    {{ if eq .Environment.Name "corp" }}
+    {{ if .Values.charts_dir }}
     chart: "{{ .Values.charts_dir }}/victoria-metrics-cluster-{{ index .Values.helm_charts "victoria-metrics-cluster" }}.tgz"
     {{ else }}
     chart: victoriametrics/victoria-metrics-cluster
@@ -59,7 +59,7 @@ releases:
   # ─── ClickHouse Operator ──────────────────────────────────────────────────
   - name: clickhouse-operator
     namespace: clickhouse
-    {{ if eq .Environment.Name "corp" }}
+    {{ if .Values.charts_dir }}
     chart: "{{ .Values.charts_dir }}/altinity-clickhouse-operator-{{ index .Values.helm_charts "altinity-clickhouse-operator" }}.tgz"
     {{ else }}
     chart: clickhouse-operator/altinity-clickhouse-operator
@@ -78,7 +78,7 @@ releases:
   # ─── Grafana ──────────────────────────────────────────────────────────────
   - name: grafana
     namespace: monitoring
-    {{ if eq .Environment.Name "corp" }}
+    {{ if .Values.charts_dir }}
     chart: "{{ .Values.charts_dir }}/grafana-{{ index .Values.helm_charts "grafana" }}.tgz"
     {{ else }}
     chart: grafana/grafana
@@ -90,7 +90,7 @@ releases:
   # ─── Vector Aggregator ────────────────────────────────────────────────────
   - name: vector
     namespace: monitoring
-    {{ if eq .Environment.Name "corp" }}
+    {{ if .Values.charts_dir }}
     chart: "{{ .Values.charts_dir }}/vector-{{ index .Values.helm_charts "vector" }}.tgz"
     {{ else }}
     chart: vector/vector
