@@ -30,6 +30,16 @@ tests:
           path: spec.template.spec.containers[0].args
           content: "-remoteWrite.url=http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prometheus/"
 
+  - it: passes extraArgs when set
+    documentIndex: 0
+    set:
+      extraArgs:
+        - "-promscrape.fileSDCheckInterval=60s"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "-promscrape.fileSDCheckInterval=60s"
+
   - it: exposes port 8429
     documentIndex: 0
     asserts:
