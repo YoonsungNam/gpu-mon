@@ -58,7 +58,11 @@ while IFS=': ' read -r image tag; do
   [[ -z "$image" ]] && continue
   echo "  ${image}:${tag}"
   if ! docker pull "${image}:${tag}"; then
-    echo "  ERROR: failed to pull ${image}:${tag}"
+    if docker manifest inspect "${DEST_BASE}/${image}:${tag}" &>/dev/null; then
+      echo "  WARN: pull failed but image already exists in ${DEST} — skipping"
+      continue
+    fi
+    echo "  ERROR: failed to pull ${image}:${tag} and not found in ${DEST}"
     errors=1
     continue
   fi
@@ -86,7 +90,11 @@ while IFS=': ' read -r image tag; do
   fi
   echo "  ${src} → ${dst}"
   if ! docker pull "${src}"; then
-    echo "  ERROR: failed to pull ${src}"
+    if docker manifest inspect "${dst}" &>/dev/null; then
+      echo "  WARN: pull failed but image already exists in ${DEST} — skipping"
+      continue
+    fi
+    echo "  ERROR: failed to pull ${src} and not found in ${DEST}"
     errors=1
     continue
   fi
