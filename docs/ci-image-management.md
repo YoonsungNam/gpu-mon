@@ -59,14 +59,17 @@ This means at any point, you have access to:
 
 ## Environment Image Tags
 
-Each environment uses a different image tag to match its role:
+Current image tag resolution is mixed:
 
-| Environment | `image_tag` | Rationale |
+| Path | Current Source | Notes |
 |---|---|---|
-| homelab | `dev` | Tracks integration branch for testing |
-| corp | Pinned (e.g., `v1.0.0`) | Explicit version control for production |
+| `mock-dcgm-exporter` deploy | `image_tag` in `environments/<env>/values.yaml` | Homelab currently uses `dev` |
+| `metadata-collector` deploy | `custom_images.metadata-collector` from `versions.yaml` / env override | Corp deploy path is aligned to `versions.yaml` |
+| `corp-sync-images.sh` | `versions.yaml -> custom_images` | Mirrors custom images to corp registry |
+| `airgap-bundle.sh` | `versions.yaml -> custom_images` | Bundles custom images with the same tags used for corp sync |
 
-The `image_tag` value is set in `environments/<env>/values.yaml` and wired into charts via `helmfile.yaml.gotmpl`.
+For the full precedence order and per-component examples, see
+[docs/version-resolution.md](version-resolution.md).
 
 ## Manual Operations
 

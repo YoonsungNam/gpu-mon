@@ -131,6 +131,8 @@ and can be adopted incrementally.
 ### versions.yaml — Single Source of Truth
 
 All image tags and chart versions in one file. Every script and template reads from here.
+For current precedence and per-component tag resolution, see
+[version-resolution.md](version-resolution.md).
 
 ```yaml
 # versions.yaml
