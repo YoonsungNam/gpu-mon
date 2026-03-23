@@ -25,13 +25,13 @@ for cmd in docker yq; do
 done
 
 CH_VER=$(yq '.grafana_plugins["grafana-clickhouse-datasource"]' "$VERSIONS_FILE")
-VM_VER=$(yq '.grafana_plugins["victoriametrics-datasource"]' "$VERSIONS_FILE")
+VM_VER=$(yq '.grafana_plugins["victoriametrics-metrics-datasource"]' "$VERSIONS_FILE")
 
 FULL_TAG="${REGISTRY}/grafana-plugins:${TAG}"
 
 echo "→ Building ${FULL_TAG}"
 echo "  grafana-clickhouse-datasource: ${CH_VER}"
-echo "  victoriametrics-datasource:    ${VM_VER}"
+echo "  victoriametrics-metrics-datasource: ${VM_VER}"
 
 docker build \
     --build-arg CLICKHOUSE_PLUGIN_VERSION="${CH_VER}" \

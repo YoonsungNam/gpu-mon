@@ -25,7 +25,7 @@ RUN curl -fsSL \
     && rm /tmp/clickhouse-plugin.zip
 
 RUN curl -fsSL \
-      "https://grafana.com/api/plugins/victoriametrics-datasource/versions/${VM_DATASOURCE_VERSION}/download" \
+      "https://grafana.com/api/plugins/victoriametrics-metrics-datasource/versions/${VM_DATASOURCE_VERSION}/download" \
       -o /tmp/vm-plugin.zip \
     && unzip /tmp/vm-plugin.zip -d /plugins/ \
     && rm /tmp/vm-plugin.zip

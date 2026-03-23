@@ -29,7 +29,7 @@ helm_charts:
 
 grafana_plugins:
   grafana-clickhouse-datasource: "4.14.0"
-  victoriametrics-datasource: "0.22.0"
+  victoriametrics-metrics-datasource: "0.22.0"
 
 tools:
   helm: "v3.16.4"
