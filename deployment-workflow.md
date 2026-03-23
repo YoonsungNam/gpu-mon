@@ -91,6 +91,9 @@ ln -s ../../gpu-mon-corp/environments/corp ./corp
 cd ~/work/gpu-mon/ansible/inventory/
 ln -s ../../../gpu-mon-corp/ansible/inventory/corp.ini ./corp.ini
 
+cd ~/work/gpu-mon/ansible/vars/
+ln -s ../../../gpu-mon-corp/ansible/vars/corp.yaml ./corp.yaml
+
 cd ~/work/gpu-mon/alerting/alertmanager/
 ln -s ../../../gpu-mon-corp/alerting/alertmanager/corp.yaml ./corp.yaml
 
@@ -113,21 +116,20 @@ cd ~/work/gpu-mon
 git checkout main && git pull
 cd ../gpu-mon-corp && git pull && cd ../gpu-mon
 
-# 2. 변경사항 확인 (dry-run)
-helmfile -e corp diff
+# 2. 원터치 배포 (이미지 싱크 + helmfile 배포)
+make corp-deploy CORP_REGISTRY=registry.corp.internal
 
-# 3. 배포
-helmfile -e corp sync
-
-# 4. 검증
+# 3. 검증
 kubectl -n monitoring get pods
 kubectl -n clickhouse get pods
-kubectl -n visualization get pods
 
-# 5. Grafana 접속 (port-forward)
-kubectl -n visualization port-forward svc/grafana 3000:3000
+# 4. Grafana 접속 (port-forward)
+kubectl -n monitoring port-forward svc/grafana 3000:3000
 # 브라우저: http://localhost:3000
 ```
+
+> **참고**: `make corp-deploy`는 이미지 싱크(`corp-sync-images.sh`) + `helmfile diff` + `helmfile sync`를 순서대로 실행합니다.
+> 이미지 싱크 없이 Helm만 배포하려면 `make corp-sync`를 사용하세요.
 
 ### Helm 차트 개별 배포/롤백
 
@@ -157,7 +159,7 @@ docker info
 ./scripts/airgap-bundle.sh
 
 # 결과물:
-#   gpu-monitoring-airgap-YYYYMMDD-HHMMSS.tar.gz (~3-5GB)
+#   gpu-mon-airgap-YYYYMMDD-HHMMSS.tar.gz (~3-5GB)
 #   
 #   번들 내용물:
 #   ├── images/all-images.tar.gz     # 모든 컨테이너 이미지
@@ -171,17 +173,17 @@ docker info
 
 ```bash
 # USB로 복사
-cp gpu-monitoring-airgap-*.tar.gz /mnt/usb/
+cp gpu-mon-airgap-*.tar.gz /mnt/usb/
 
 # 또는 SCP (사내 네트워크에 접근 가능한 jump 서버 경유)
-scp gpu-monitoring-airgap-*.tar.gz jumphost:/tmp/
+scp gpu-mon-airgap-*.tar.gz jumphost:/tmp/
 ```
 
 ### 사내 서버에서 설치
 
 ```bash
 # 1. 번들 압축 해제
-tar xzf gpu-monitoring-airgap-*.tar.gz
+tar xzf gpu-mon-airgap-*.tar.gz
 cd airgap-bundle/
 
 # 2. 설치 (사내 레지스트리 URL 인자로 전달)

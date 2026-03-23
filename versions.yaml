@@ -1,5 +1,5 @@
 # versions.yaml — Single source of truth for all image and chart versions.
-# Read by: helmfile.yaml.gotmpl, CI workflows, corp-sync-images.sh
+# Read by: helmfile.yaml.gotmpl, CI workflows, corp-sync-images.sh, airgap-bundle.sh
 # See: docs/corp-deployment-strategy.md (D24)
 
 custom_images:
@@ -25,3 +25,7 @@ helm_charts:
   altinity-clickhouse-operator: "0.26.0"
   grafana: "10.5.15"
   vector: "0.50.0"
+
+tools:
+  helm: "v3.16.4"
+  helmfile: "v0.169.2"

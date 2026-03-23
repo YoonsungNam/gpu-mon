@@ -104,6 +104,8 @@ releases:
     namespace: monitoring
     chart: charts/metadata-collector
     values:
+      - image:
+          tag: "{{ index .Values.custom_images "metadata-collector" }}"
       - environments/{{ .Environment.Name }}/metadata-collector.yaml
     # Only deploy in corp; homelab uses mock data
     condition: metadata_collector.enabled
