@@ -1,9 +1,9 @@
 SHELL := /bin/bash
 .PHONY: help dev-up dev-down homelab-diff homelab-sync build-images lint validate-values chart-diff corp-preflight corp-diff corp-sync corp-deploy corp-pull-charts corp-bundle
 
-REGISTRY      ?= ghcr.io/yoonsungnam/gpu-mon
-TAG           ?= dev
-CORP_REGISTRY  ?= registry.corp.internal
+REGISTRY        ?= ghcr.io/yoonsungnam/gpu-mon
+TAG             ?= dev
+CORP_REGISTRY   ?= registry.corp.internal
 CORP_CHARTS_DIR ?= /opt/gpu-mon/charts
 
 help: ## Show this help
