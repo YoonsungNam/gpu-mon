@@ -10,7 +10,7 @@ Custom images (e.g., `mock-dcgm-exporter`, `metadata-collector`) are built by Gi
 
 | Workflow | File | Trigger |
 |---|---|---|
-| Docker Build & Push | `.github/workflows/docker-build-push.yml` | Push to `dev`/`main` when `src/<image>/**` changes |
+| Docker Build & Push | `.github/workflows/docker-build-push.yml` | Every push to `dev`/`main`; the workflow builds only images whose source/version changed or whose branch tag is missing in GHCR |
 | Cleanup GHCR Images | `.github/workflows/cleanup-ghcr.yml` | Weekly (Sunday 00:00 UTC) + manual |
 
 ## Tagging Strategy
@@ -75,7 +75,7 @@ For the full precedence order and per-component examples, see
 
 ### Trigger a build manually
 
-The build workflow does not support `workflow_dispatch`. To rebuild, push a no-op change to a source file on `dev` or `main`.
+The build workflow does not support `workflow_dispatch`. To rebuild, push a commit to `dev` or `main`.
 
 ### Trigger cleanup manually
 

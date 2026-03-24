@@ -1,18 +1,12 @@
 ---
 # Build and push custom container images to GHCR.
-# Runs on push to dev/main when source files change.
+# Runs on every push to dev/main; the changes job decides whether any image needs rebuilding.
 
 name: Docker Build & Push
 
 on:
   push:
     branches: [dev, main]
-    paths:
-      - "src/mock-dcgm-exporter/**"
-      - "src/metadata-collector/**"
-      - "src/grafana-plugins/**"
-      - "versions.yaml"
-      - ".github/workflows/docker-build-push.yml"
 
 env:
   REGISTRY: ghcr.io
