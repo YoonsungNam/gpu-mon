@@ -86,8 +86,9 @@ Notes:
 
 1. `corp-sync-images.sh` reads `versions.yaml`, pulls images from GHCR/DockerHub, and pushes them to the corp registry
 2. This includes the `grafana-plugins` carrier image when it is listed under `custom_images`
-3. `helmfile -e corp diff` previews changes
-4. `helmfile -e corp sync` deploys to the cluster
+3. StorageClass `spectrum-scale` is created if absent in the cluster (skipped if it already exists; fails if the manifest file is missing)
+4. `helmfile -e corp diff` previews changes
+5. `helmfile -e corp sync` deploys to the cluster
 
 If `grafana_plugins_init: true` is set in `environments/corp/values.yaml`, the
 Grafana release mounts an `emptyDir`, runs an init container from the

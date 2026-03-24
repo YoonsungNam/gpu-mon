@@ -59,6 +59,10 @@ corp-deploy: corp-preflight ## Sync images + deploy to corp cluster (one-touch)
 	elif [ -f environments/corp/storageclass.yaml ]; then \
 		echo "Creating StorageClass spectrum-scale..."; \
 		kubectl apply -f environments/corp/storageclass.yaml; \
+	else \
+		echo "ERROR: StorageClass spectrum-scale not found in cluster and environments/corp/storageclass.yaml is missing." >&2; \
+		echo "  Copy environments/corp.example/storageclass.yaml.example → environments/corp/storageclass.yaml and fill in values." >&2; \
+		exit 1; \
 	fi
 	helmfile -e corp diff
 	helmfile -e corp sync
