@@ -24,7 +24,7 @@ jobs:
     outputs:
       mock-dcgm-exporter: ${{ steps.filter.outputs.mock-dcgm-exporter }}
       metadata-collector: ${{ steps.filter.outputs.metadata-collector }}
-      grafana-plugins: ${{ steps.filter.outputs.grafana-plugins }}
+      grafana-plugins: ${{ steps.filter.outputs.grafana-plugins == 'true' || steps.grafana-image.outputs.missing == 'true' }}
       image_prefix: ${{ steps.repo.outputs.lowercase }}
     steps:
       - uses: actions/checkout@v4
@@ -42,6 +42,23 @@ jobs:
             grafana-plugins:
               - 'src/grafana-plugins/**'
               - 'versions.yaml'
+      - name: Check grafana-plugins image in GHCR
+        id: grafana-image
+        run: |
+          REPO="${GITHUB_REPOSITORY,,}"
+          TAG="${GITHUB_REF_NAME}"
+          # Anonymous GHCR token for public packages
+          TOKEN=$(curl -sf "https://ghcr.io/token?scope=repository:${REPO}/grafana-plugins:pull" | jq -r '.token // empty') || true
+          if [ -n "$TOKEN" ] && \
+             curl -sf -o /dev/null \
+               "https://ghcr.io/v2/${REPO}/grafana-plugins/manifests/${TAG}" \
+               -H "Authorization: Bearer ${TOKEN}"; then
+            echo "Image grafana-plugins:${TAG} exists in GHCR"
+            echo "missing=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Image grafana-plugins:${TAG} not found in GHCR — will build"
+            echo "missing=true" >> "$GITHUB_OUTPUT"
+          fi
 
   build-push:
     name: Build ${{ matrix.image }}
