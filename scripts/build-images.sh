@@ -30,4 +30,8 @@ for img in "${IMAGES[@]}"; do
     fi
 done
 
+# Build grafana-plugins carrier image (requires build args from versions.yaml)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+"${SCRIPT_DIR}/build-grafana-plugins.sh" "${REGISTRY}" "${TAG}" "${PUSH}"
+
 echo "Done."
