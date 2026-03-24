@@ -6,6 +6,10 @@ replicaCount: 2   # HA pair
 remoteWrite:
   - url: "http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prometheus/"
 
+fileSD:
+  enabled: true
+  configMapName: vmagent-file-sd
+
 extraArgs:
   - "-promscrape.fileSDCheckInterval=60s"
 
