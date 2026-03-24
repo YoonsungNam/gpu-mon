@@ -20,9 +20,11 @@ Actual production values live in a separate private repo and are symlinked here 
 | `targets/vm-gpu-nodes.json.example` | File SD target list for VMware GPU VMs |
 | `targets/inference-servers.json.example` | File SD target list for inference servers |
 
-All YAML files above are required for `helmfile -e corp sync` to succeed
-(except `metadata-collector.yaml.example`, which is only needed when
-`metadata_collector.enabled: true` in `values.yaml`).
+All Helm values YAML files above are required for `helmfile -e corp sync`
+to succeed (except `metadata-collector.yaml.example`, which is only needed
+when `metadata_collector.enabled: true` in `values.yaml`).
+`storageclass.yaml.example` is a separate cluster prerequisite used by
+`make corp-deploy` and `make corp-sync` when the StorageClass is absent.
 Target JSON files are required when the corresponding scrape jobs are
 configured in `vmagent.yaml`.
 
@@ -31,7 +33,7 @@ configured in `vmagent.yaml`.
 `storageclass.yaml` defines a cluster-scoped StorageClass required by
 VictoriaMetrics and ClickHouse PVCs. It is **not** managed by Helmfile.
 
-`make corp-deploy` handles it automatically:
+`make corp-deploy` and `make corp-sync` handle it automatically:
 - If the StorageClass already exists in the cluster, it is **skipped**
   (safe when the SC is managed externally, e.g. by the storage team).
 - If it is absent and `environments/corp/storageclass.yaml` exists on disk,
