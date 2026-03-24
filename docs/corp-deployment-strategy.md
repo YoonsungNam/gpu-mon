@@ -234,12 +234,24 @@ echo "=== Sync complete ==="
 ### Makefile Targets
 
 ```makefile
-corp-deploy: corp-preflight ## Sync images + deploy to corp cluster (one-touch)
-	./scripts/corp-sync-images.sh $(CORP_REGISTRY)
-	helmfile -e corp diff
+corp-ensure-sc: corp-preflight ## Ensure required StorageClass exists for corp PVCs
+	@# StorageClass: create if absent, skip if exists, fail if file missing
+	@if kubectl get sc spectrum-scale >/dev/null 2>&1; then \
+		echo "StorageClass spectrum-scale already exists, skipping"; \
+	elif [ -f environments/corp/storageclass.yaml ]; then \
+		echo "Creating StorageClass spectrum-scale..."; \
+		kubectl apply -f environments/corp/storageclass.yaml; \
+	else \
+		echo "ERROR: StorageClass spectrum-scale not found and manifest missing"; \
+		exit 1; \
+	fi
+
+corp-sync: corp-ensure-sc ## Deploy to corp K8s cluster (helmfile only, no image sync)
 	helmfile -e corp sync
 
-corp-sync: corp-preflight ## Deploy to corp K8s cluster (helmfile only, no image sync)
+corp-deploy: corp-ensure-sc ## Sync images + deploy to corp cluster (one-touch)
+	./scripts/corp-sync-images.sh $(CORP_REGISTRY)
+	helmfile -e corp diff
 	helmfile -e corp sync
 ```
 

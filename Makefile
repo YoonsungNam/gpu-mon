@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images build-grafana-plugins lint validate-values chart-diff corp-preflight corp-diff corp-sync corp-deploy corp-pull-charts corp-bundle
+.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images build-grafana-plugins lint validate-values chart-diff corp-preflight corp-ensure-sc corp-diff corp-sync corp-deploy corp-pull-charts corp-bundle
 
 REGISTRY        ?= ghcr.io/yoonsungnam/gpu-mon
 TAG             ?= dev
@@ -44,13 +44,27 @@ corp-preflight: ## Validate corp symlinks and required files
 corp-diff: corp-preflight ## Show pending Helm changes for corp env (requires gpu-mon-corp symlink)
 	helmfile -e corp diff
 
-corp-sync: corp-preflight ## Deploy to corp K8s cluster
+corp-ensure-sc: corp-preflight ## Ensure required StorageClass exists for corp PVCs
+	@# StorageClass is a cluster-scoped prerequisite, not managed by Helmfile.
+	@# Only create if absent — avoids overwriting an SC managed externally.
+	@if kubectl get sc spectrum-scale >/dev/null 2>&1; then \
+		echo "StorageClass spectrum-scale already exists, skipping"; \
+	elif [ -f environments/corp/storageclass.yaml ]; then \
+		echo "Creating StorageClass spectrum-scale..."; \
+		kubectl apply -f environments/corp/storageclass.yaml; \
+	else \
+		echo "ERROR: StorageClass spectrum-scale not found in cluster and environments/corp/storageclass.yaml is missing." >&2; \
+		echo "  Copy environments/corp.example/storageclass.yaml.example → environments/corp/storageclass.yaml and fill in values." >&2; \
+		exit 1; \
+	fi
+
+corp-sync: corp-ensure-sc ## Deploy to corp K8s cluster
 	helmfile -e corp sync
 
 corp-pull-charts: corp-preflight ## Pull OSS Helm charts to local .tgz cache (airgap prep)
 	./scripts/corp-pull-charts.sh $(CORP_CHARTS_DIR)
 
-corp-deploy: corp-preflight ## Sync images + deploy to corp cluster (one-touch)
+corp-deploy: corp-ensure-sc ## Sync images + deploy to corp cluster (one-touch)
 	./scripts/corp-sync-images.sh $(CORP_REGISTRY)
 	helmfile -e corp diff
 	helmfile -e corp sync

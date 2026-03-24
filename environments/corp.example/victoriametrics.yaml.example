@@ -21,6 +21,7 @@ vmstorage:
   persistentVolume:
     enabled: true
     size: 200Gi                  # Adjust based on GPU node count and retention
+    storageClassName: "spectrum-scale"
   retentionPeriod: "90d"         # Must align with retention.metrics_days in values.yaml
   resources:
     requests:

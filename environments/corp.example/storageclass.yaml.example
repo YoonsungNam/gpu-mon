@@ -1,0 +1,19 @@
+# StorageClass for IBM Spectrum Scale CSI — template.
+# Copy to environments/corp/storageclass.yaml (in the private repo)
+# and fill in the actual filesystem name.
+#
+# Primary path: `make corp-deploy` or `make corp-sync` will apply this
+# automatically if `spectrum-scale` does not already exist in the cluster.
+# Manual path (optional):
+#   kubectl apply -f environments/corp/storageclass.yaml
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: spectrum-scale
+provisioner: spectrumscale.csi.ibm.com
+parameters:
+  volBackendFs: "YOUR_GPFS_FILESYSTEM_HERE"   # e.g. gpfs01
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
