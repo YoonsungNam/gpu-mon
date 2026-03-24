@@ -10,6 +10,8 @@ on:
     paths:
       - "src/mock-dcgm-exporter/**"
       - "src/metadata-collector/**"
+      - "src/grafana-plugins/**"
+      - "versions.yaml"
       - ".github/workflows/docker-build-push.yml"
 
 env:
@@ -22,6 +24,7 @@ jobs:
     outputs:
       mock-dcgm-exporter: ${{ steps.filter.outputs.mock-dcgm-exporter }}
       metadata-collector: ${{ steps.filter.outputs.metadata-collector }}
+      grafana-plugins: ${{ steps.filter.outputs.grafana-plugins }}
       image_prefix: ${{ steps.repo.outputs.lowercase }}
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +39,9 @@ jobs:
               - 'src/mock-dcgm-exporter/**'
             metadata-collector:
               - 'src/metadata-collector/**'
+            grafana-plugins:
+              - 'src/grafana-plugins/**'
+              - 'versions.yaml'
 
   build-push:
     name: Build ${{ matrix.image }}
@@ -53,7 +59,10 @@ jobs:
           - image: metadata-collector
             context: src/metadata-collector
             changed: ${{ needs.changes.outputs.metadata-collector }}
-    if: needs.changes.outputs.mock-dcgm-exporter == 'true' || needs.changes.outputs.metadata-collector == 'true'
+          - image: grafana-plugins
+            context: src/grafana-plugins
+            changed: ${{ needs.changes.outputs.grafana-plugins }}
+    if: needs.changes.outputs.mock-dcgm-exporter == 'true' || needs.changes.outputs.metadata-collector == 'true' || needs.changes.outputs.grafana-plugins == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +92,15 @@ jobs:
           fi
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
+      - name: Extract Grafana plugin versions
+        if: matrix.changed == 'true' && matrix.image == 'grafana-plugins'
+        id: plugin-versions
+        run: |
+          CH_VER=$(grep 'grafana-clickhouse-datasource' versions.yaml | awk -F'"' '{print $2}')
+          VM_VER=$(grep 'victoriametrics-metrics-datasource' versions.yaml | awk -F'"' '{print $2}')
+          echo "ch-ver=${CH_VER}" >> "$GITHUB_OUTPUT"
+          echo "vm-ver=${VM_VER}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         if: matrix.changed == 'true'
         uses: docker/build-push-action@v6
@@ -90,3 +108,6 @@ jobs:
           context: ${{ matrix.context }}
           push: true
           tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            CLICKHOUSE_PLUGIN_VERSION=${{ steps.plugin-versions.outputs.ch-ver }}
+            VM_DATASOURCE_VERSION=${{ steps.plugin-versions.outputs.vm-ver }}

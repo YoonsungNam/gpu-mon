@@ -59,28 +59,16 @@ In corp, Grafana runs with `grafana_plugins_init: true`, so plugins are loaded
 from the `grafana-plugins` carrier image instead of being downloaded from
 grafana.com at pod startup.
 
-Build and publish that image from an internet-connected machine when either of
-these change:
+CI automatically builds and pushes the `grafana-plugins` image to GHCR when
+either of these change:
 
-- First-time corp setup for this branch/tag
-- `versions.yaml -> grafana_plugins`
-- `src/grafana-plugins/Dockerfile`
+- `src/grafana-plugins/**` (Dockerfile)
+- `versions.yaml` (plugin versions under `grafana_plugins`)
 
-```bash
-cd ~/work/gpu-mon
+`make corp-deploy` then mirrors the image from GHCR into the corp registry
+alongside all other custom images.
 
-# Build and publish the carrier image to GHCR (or your chosen REGISTRY)
-make build-grafana-plugins REGISTRY=ghcr.io/yoonsungnam/gpu-mon TAG=main
-make push-grafana-plugins REGISTRY=ghcr.io/yoonsungnam/gpu-mon TAG=main
-```
-
-Notes:
-
-- `make corp-deploy` mirrors `custom_images.grafana-plugins` from GHCR into the
-  corp registry, but it does not build that image locally.
-- The tag used by corp deploy comes from `versions.yaml -> custom_images.grafana-plugins`.
-- The plugin versions baked into the carrier image come from
-  `versions.yaml -> grafana_plugins`.
+To build locally (e.g. for testing): `make build-grafana-plugins`
 
 ## What `make corp-deploy` does
 
