@@ -59,11 +59,14 @@ In corp, Grafana runs with `grafana_plugins_init: true`, so plugins are loaded
 from the `grafana-plugins` carrier image instead of being downloaded from
 grafana.com at pod startup.
 
-CI automatically builds and pushes the `grafana-plugins` image to GHCR when
-either of these change:
+CI automatically builds and pushes the `grafana-plugins` image to GHCR using
+the tag from `versions.yaml -> custom_images.grafana-plugins` when either of
+these change:
 
 - `src/grafana-plugins/**` (Dockerfile)
 - `versions.yaml` (plugin versions under `grafana_plugins`)
+
+It also rebuilds when that configured GHCR tag is missing.
 
 `make corp-deploy` then mirrors the image from GHCR into the corp registry
 alongside all other custom images.

@@ -10,7 +10,7 @@ Custom images (e.g., `mock-dcgm-exporter`, `metadata-collector`) are built by Gi
 
 | Workflow | File | Trigger |
 |---|---|---|
-| Docker Build & Push | `.github/workflows/docker-build-push.yml` | Every push to `dev`/`main`; the workflow builds only images whose source/version changed or whose branch tag is missing in GHCR |
+| Docker Build & Push | `.github/workflows/docker-build-push.yml` | Every push to `dev`/`main`; the workflow builds only images whose source/version changed or whose required tag is missing in GHCR |
 | Cleanup GHCR Images | `.github/workflows/cleanup-ghcr.yml` | Weekly (Sunday 00:00 UTC) + manual |
 
 ## Tagging Strategy

@@ -18,6 +18,7 @@ jobs:
     outputs:
       mock-dcgm-exporter: ${{ steps.filter.outputs.mock-dcgm-exporter }}
       metadata-collector: ${{ steps.filter.outputs.metadata-collector }}
+      grafana-plugins-tag: ${{ steps.grafana-tag.outputs.tag }}
       grafana-plugins: ${{ steps.filter.outputs.grafana-plugins == 'true' || steps.grafana-image.outputs.missing == 'true' }}
       image_prefix: ${{ steps.repo.outputs.lowercase }}
     steps:
@@ -36,21 +37,27 @@ jobs:
             grafana-plugins:
               - 'src/grafana-plugins/**'
               - 'versions.yaml'
+      - name: Extract grafana-plugins target tag
+        id: grafana-tag
+        run: |
+          TAG=$(python3 -c 'import yaml; print(yaml.safe_load(open("versions.yaml"))["custom_images"]["grafana-plugins"])')
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
       - name: Check grafana-plugins image in GHCR
         id: grafana-image
+        env:
+          TARGET_TAG: ${{ steps.grafana-tag.outputs.tag }}
         run: |
           REPO="${GITHUB_REPOSITORY,,}"
-          TAG="${GITHUB_REF_NAME}"
           # Anonymous GHCR token for public packages
           TOKEN=$(curl -sf "https://ghcr.io/token?scope=repository:${REPO}/grafana-plugins:pull" | jq -r '.token // empty') || true
           if [ -n "$TOKEN" ] && \
              curl -sf -o /dev/null \
-               "https://ghcr.io/v2/${REPO}/grafana-plugins/manifests/${TAG}" \
+               "https://ghcr.io/v2/${REPO}/grafana-plugins/manifests/${TARGET_TAG}" \
                -H "Authorization: Bearer ${TOKEN}"; then
-            echo "Image grafana-plugins:${TAG} exists in GHCR"
+            echo "Image grafana-plugins:${TARGET_TAG} exists in GHCR"
             echo "missing=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Image grafana-plugins:${TAG} not found in GHCR — will build"
+            echo "Image grafana-plugins:${TARGET_TAG} not found in GHCR — will build"
             echo "missing=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -93,12 +100,18 @@ jobs:
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ needs.changes.outputs.image_prefix }}/${{ matrix.image }}
           BRANCH: ${{ github.ref_name }}
+          GRAFANA_TAG: ${{ needs.changes.outputs.grafana-plugins-tag }}
+          MATRIX_IMAGE: ${{ matrix.image }}
         run: |
           SHORT_SHA="${GITHUB_SHA::7}"
-          TAGS="${IMAGE}:${BRANCH}-${SHORT_SHA}"
-          TAGS="${TAGS},${IMAGE}:${BRANCH}"
+          TAG_BASE="${BRANCH}"
+          if [ "$MATRIX_IMAGE" = "grafana-plugins" ]; then
+            TAG_BASE="${GRAFANA_TAG}"
+          fi
+          TAGS="${IMAGE}:${TAG_BASE}-${SHORT_SHA}"
+          TAGS="${TAGS},${IMAGE}:${TAG_BASE}"
           # :latest only moves on main push
-          if [ "$BRANCH" = "main" ]; then
+          if [ "$BRANCH" = "main" ] && [ "$TAG_BASE" = "main" ]; then
             TAGS="${TAGS},${IMAGE}:latest"
           fi
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
