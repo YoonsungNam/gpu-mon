@@ -26,6 +26,19 @@ All YAML files above are required for `helmfile -e corp sync` to succeed
 Target JSON files are required when the corresponding scrape jobs are
 configured in `vmagent.yaml`.
 
+## StorageClass lifecycle
+
+`storageclass.yaml` defines a cluster-scoped StorageClass required by
+VictoriaMetrics and ClickHouse PVCs. It is **not** managed by Helmfile.
+
+`make corp-deploy` handles it automatically:
+- If the StorageClass already exists in the cluster, it is **skipped**
+  (safe when the SC is managed externally, e.g. by the storage team).
+- If it is absent and `environments/corp/storageclass.yaml` exists on disk,
+  it is created via `kubectl apply`.
+- To update an existing SC, delete it first then re-run:
+  `kubectl delete sc spectrum-scale && make corp-deploy`
+
 ## Usage
 
 ```bash
@@ -36,6 +49,6 @@ for f in targets/*.example; do cp "$f" "${f%.example}"; done
 # 2. Edit with your actual infrastructure details
 vim values.yaml
 
-# 3. Deploy
-helmfile -e corp sync
+# 3. Deploy (applies StorageClass if needed, then helmfile sync)
+make corp-deploy
 ```
