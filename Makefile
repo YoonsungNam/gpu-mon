@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images build-grafana-plugins lint validate-values chart-diff corp-preflight corp-ensure-sc corp-diff corp-sync corp-deploy corp-pull-charts corp-bundle
+.PHONY: help dev-up dev-down homelab-diff homelab-sync build-images build-all-images build-grafana-plugins lint validate-values chart-diff corp-preflight corp-ensure-sc corp-diff corp-sync corp-deploy corp-pull-charts corp-bundle
 
 REGISTRY        ?= ghcr.io/yoonsungnam/gpu-mon
 TAG             ?= dev
@@ -74,13 +74,15 @@ corp-bundle: corp-preflight ## Generate Airgap bundle for corp deployment
 
 # ─── Images ──────────────────────────────────────────────────────────────────
 
-build-images: ## Build all custom Docker images
+build-images: ## Build custom Docker images (mock-dcgm-exporter, metadata-collector)
 	./scripts/build-images.sh $(REGISTRY) $(TAG)
 
-push-images: ## Push images to registry
+push-images: ## Push custom Docker images to registry
 	./scripts/build-images.sh $(REGISTRY) $(TAG) --push
 
-build-grafana-plugins: ## Build Grafana plugin carrier image (airgap)
+build-all-images: build-images build-grafana-plugins ## Build all images including grafana-plugins carrier (requires yq)
+
+build-grafana-plugins: ## Build Grafana plugin carrier image (airgap, requires yq)
 	./scripts/build-grafana-plugins.sh $(REGISTRY) $(TAG)
 
 push-grafana-plugins: ## Push Grafana plugin carrier image
