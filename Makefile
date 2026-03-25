@@ -31,7 +31,7 @@ homelab-diff: ## Show pending Helm changes for homelab env
 	helmfile -e homelab diff
 
 homelab-sync: ## Deploy to homelab K8s cluster
-	helmfile -e homelab sync
+	./scripts/helmfile-sync.sh homelab
 
 homelab-destroy: ## Destroy homelab deployment (irreversible)
 	helmfile -e homelab destroy
@@ -59,7 +59,7 @@ corp-ensure-sc: corp-preflight ## Ensure required StorageClass exists for corp P
 	fi
 
 corp-sync: corp-ensure-sc ## Deploy to corp K8s cluster
-	helmfile -e corp sync
+	./scripts/helmfile-sync.sh corp
 
 corp-pull-charts: corp-preflight ## Pull OSS Helm charts to local .tgz cache (airgap prep)
 	./scripts/corp-pull-charts.sh $(CORP_CHARTS_DIR)
@@ -67,7 +67,7 @@ corp-pull-charts: corp-preflight ## Pull OSS Helm charts to local .tgz cache (ai
 corp-deploy: corp-ensure-sc ## Sync images + deploy to corp cluster (one-touch)
 	./scripts/corp-sync-images.sh $(CORP_REGISTRY)
 	helmfile -e corp diff
-	helmfile -e corp sync
+	./scripts/helmfile-sync.sh corp
 
 corp-bundle: corp-preflight ## Generate Airgap bundle for corp deployment
 	./scripts/airgap-bundle.sh
