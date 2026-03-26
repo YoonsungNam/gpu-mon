@@ -94,8 +94,8 @@ The wrapper auto-recovers from StatefulSet immutable field errors (e.g. PVC size
 or storageClassName changes on vmstorage) by orphan-deleting only allowlisted
 StatefulSets and retrying the sync. Pods and PVCs remain running throughout.
 
-See [`scripts/helmfile-sync.sh`](../scripts/helmfile-sync.sh) for the full
-implementation, allowlist, and safety guards.
+See [Helmfile Sync Retry Flow](helmfile-sync.md) for the full flow description,
+safety guards, and flowchart.
 
 ## Rollback
 
