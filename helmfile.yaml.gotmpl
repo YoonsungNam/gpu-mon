@@ -55,6 +55,17 @@ releases:
     chart: charts/vmagent-central
     values:
       - environments/{{ .Environment.Name }}/vmagent.yaml
+    {{- $targetsDir := printf "environments/%s/targets" .Environment.Name }}
+    {{- if eq (exec "sh" (list "-c" (printf "test -d %s && echo true || echo false" $targetsDir)) | trim) "true" }}
+      - fileSD:
+          data:
+      {{- range (exec "sh" (list "-c" (printf "ls %s/*.json 2>/dev/null | while read f; do basename \"$f\"; done" $targetsDir)) | trim | splitList "\n") }}
+      {{- if ne . "" }}
+            {{ . }}: |
+{{ exec "sh" (list "-c" (printf "cat \"%s/%s\"" $targetsDir .)) | indent 14 }}
+      {{- end }}
+      {{- end }}
+    {{- end }}
 
   # ─── ClickHouse Operator ──────────────────────────────────────────────────
   - name: clickhouse-operator

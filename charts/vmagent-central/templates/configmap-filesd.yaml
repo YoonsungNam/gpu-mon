@@ -1,0 +1,11 @@
+{{- if and .Values.fileSD.enabled .Values.fileSD.data }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vmagent-central.fullname" . }}-file-sd
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vmagent-central.labels" . | nindent 4 }}
+data:
+  {{- toYaml .Values.fileSD.data | nindent 2 }}
+{{- end }}

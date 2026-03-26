@@ -37,7 +37,7 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/vmagent
-            {{- if .Values.fileSD.enabled }}
+            {{- if and .Values.fileSD.enabled .Values.fileSD.data }}
             - name: file-sd
               mountPath: /etc/vmagent/sd
             {{- end }}
@@ -59,8 +59,8 @@ spec:
         - name: config
           configMap:
             name: {{ include "vmagent-central.fullname" . }}-config
-        {{- if .Values.fileSD.enabled }}
+        {{- if and .Values.fileSD.enabled .Values.fileSD.data }}
         - name: file-sd
           configMap:
-            name: {{ .Values.fileSD.configMapName }}
+            name: {{ include "vmagent-central.fullname" . }}-file-sd
         {{- end }}

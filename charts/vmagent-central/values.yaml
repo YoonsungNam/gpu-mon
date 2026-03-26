@@ -15,11 +15,13 @@ extraArgs: []
 # Full vmagent scrape configuration (merged by environment values)
 scrapeConfig: {}
 
-# File SD config map: Ansible-managed JSON target files
-# Keys are mounted as /etc/vmagent/sd/<key>
+# File SD: target JSON files mounted as /etc/vmagent/sd/<key>
+# Each key becomes a file; value is the JSON content (Prometheus file_sd format).
 fileSD:
   enabled: false
-  configMapName: vmagent-file-sd
+  data: {}
+  #   baremetal-gpu-nodes.json: |
+  #     [{"targets":["node-01:9400"],"labels":{"platform":"baremetal"}}]
 
 resources:
   requests:
