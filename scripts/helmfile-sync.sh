@@ -33,12 +33,15 @@ find_affected_statefulsets() {
 
   for entry in "${MANAGED_STATEFULSETS[@]}"; do
     sts="${entry#*/}"
+    # K8s API errors quote the resource name: StatefulSet.apps "name" is invalid
     if [[ "$output" == *"\"$sts\""* ]]; then
       matched+=("$entry")
     fi
   done
 
-  printf '%s\n' "${matched[@]}"
+  if [ ${#matched[@]} -gt 0 ]; then
+    printf '%s\n' "${matched[@]}"
+  fi
 }
 
 echo "=== gpu-mon helmfile sync ($ENV) ==="
@@ -93,5 +96,8 @@ for entry in "${AFFECTED_STATEFULSETS[@]}"; do
 done
 
 echo "[retry] Re-running helmfile sync..."
-helmfile -e "$ENV" sync
+if ! helmfile -e "$ENV" sync; then
+  echo "[retry] Retry also failed. Manual intervention required."
+  exit 1
+fi
 echo "=== sync completed after StatefulSet recreation ==="
