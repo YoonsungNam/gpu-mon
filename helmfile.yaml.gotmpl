@@ -62,7 +62,7 @@ releases:
       {{- range (exec "sh" (list "-c" (printf "ls %s/*.json 2>/dev/null | while read f; do basename \"$f\"; done" $targetsDir)) | trim | splitList "\n") }}
       {{- if ne . "" }}
             {{ . }}: |
-{{ exec "sh" (list "-c" (printf "cat %s/%s" $targetsDir .)) | indent 14 }}
+{{ exec "sh" (list "-c" (printf "cat '%s/%s'" $targetsDir .)) | indent 14 }}
       {{- end }}
       {{- end }}
     {{- end }}
