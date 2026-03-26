@@ -89,7 +89,7 @@ releases:
       - environments/{{ .Environment.Name }}/grafana.yaml
     {{ if .Values.grafana_plugins_init }}
       - plugins: []
-        initContainers:
+        extraInitContainers:
           - name: install-plugins
             image: "{{ .Values.image_registry }}/grafana-plugins:{{ index .Values.custom_images "grafana-plugins" }}"
             command: ["sh", "-c", "cp -r /plugins/* /grafana-plugins/"]
