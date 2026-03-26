@@ -25,6 +25,22 @@ MANAGED_STATEFULSETS=(
   "monitoring/victoriametrics-victoria-metrics-cluster-vmstorage"
 )
 
+find_affected_statefulsets() {
+  local output="$1"
+  local matched=()
+  local entry
+  local sts
+
+  for entry in "${MANAGED_STATEFULSETS[@]}"; do
+    sts="${entry#*/}"
+    if [[ "$output" == *"\"$sts\""* ]]; then
+      matched+=("$entry")
+    fi
+  done
+
+  printf '%s\n' "${matched[@]}"
+}
+
 echo "=== gpu-mon helmfile sync ($ENV) ==="
 
 # Attempt helmfile sync, capturing output and exit code separately.
@@ -50,9 +66,23 @@ fi
 echo "$OUTPUT"
 echo ""
 echo "[retry] Detected immutable field error in StatefulSet update."
-echo "[retry] Orphan-deleting affected StatefulSets (pods and PVCs preserved)..."
 
-for entry in "${MANAGED_STATEFULSETS[@]}"; do
+AFFECTED_STATEFULSETS=()
+while IFS= read -r entry; do
+  if [ -n "$entry" ]; then
+    AFFECTED_STATEFULSETS+=("$entry")
+  fi
+done < <(find_affected_statefulsets "$OUTPUT")
+
+if [ ${#AFFECTED_STATEFULSETS[@]} -eq 0 ]; then
+  echo "[retry] No allowlisted StatefulSet was named in the error output."
+  echo "[retry] Refusing to orphan-delete healthy resources; inspect the sync failure above."
+  exit "$RC"
+fi
+
+echo "[retry] Orphan-deleting only the affected StatefulSets named in the error output..."
+
+for entry in "${AFFECTED_STATEFULSETS[@]}"; do
   ns="${entry%%/*}"
   sts="${entry#*/}"
   if kubectl get statefulset "$sts" -n "$ns" &>/dev/null; then
