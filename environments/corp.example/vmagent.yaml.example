@@ -6,9 +6,10 @@ replicaCount: 2   # HA pair
 remoteWrite:
   - url: "http://vminsert-victoriametrics.monitoring.svc:8480/insert/0/prometheus/"
 
+# Target data (fileSD.data) is auto-injected by helmfile from targets/*.json.
+# To update targets, edit the JSON files in environments/corp/targets/.
 fileSD:
   enabled: true
-  configMapName: vmagent-file-sd
 
 extraArgs:
   - "-promscrape.fileSDCheckInterval=60s"
