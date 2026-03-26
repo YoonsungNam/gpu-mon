@@ -37,7 +37,7 @@ VictoriaMetrics and ClickHouse PVCs. It is **not** managed by Helmfile.
 - If the StorageClass already exists in the cluster, it is **skipped**
   (safe when the SC is managed externally, e.g. by the storage team).
 - If it is absent and `environments/corp/storageclass.yaml` exists on disk,
-  it is created via `kubectl apply`.
+  it is created via `kubectl apply --validate=false` to avoid blocking on OpenAPI schema fetch timeouts from the cluster API.
 - To update an existing SC, delete it first then re-run:
   `kubectl delete sc spectrum-scale && make corp-deploy`
 

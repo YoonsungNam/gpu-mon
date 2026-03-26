@@ -51,7 +51,7 @@ corp-ensure-sc: corp-preflight ## Ensure required StorageClass exists for corp P
 		echo "StorageClass spectrum-scale already exists, skipping"; \
 	elif [ -f environments/corp/storageclass.yaml ]; then \
 		echo "Creating StorageClass spectrum-scale..."; \
-		kubectl apply -f environments/corp/storageclass.yaml; \
+		kubectl apply --validate=false -f environments/corp/storageclass.yaml; \
 	else \
 		echo "ERROR: StorageClass spectrum-scale not found in cluster and environments/corp/storageclass.yaml is missing." >&2; \
 		echo "  Copy environments/corp.example/storageclass.yaml.example → environments/corp/storageclass.yaml and fill in values." >&2; \
