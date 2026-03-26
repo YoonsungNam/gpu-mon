@@ -92,16 +92,34 @@ tests:
           content:
             name: file-sd
 
-  - it: mounts file-sd volume when fileSD enabled
+  - it: mounts file-sd volume when fileSD enabled with data
     documentIndex: 0
     set:
       fileSD:
         enabled: true
-        configMapName: my-file-sd
+        data:
+          targets.json: '[{"targets":["node:9400"]}]'
     asserts:
       - contains:
           path: spec.template.spec.volumes
           content:
             name: file-sd
             configMap:
-              name: my-file-sd
+              name: RELEASE-NAME-vmagent-central-file-sd
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: file-sd
+            mountPath: /etc/vmagent/sd
+
+  - it: does not mount file-sd volume when fileSD enabled but data empty
+    documentIndex: 0
+    set:
+      fileSD:
+        enabled: true
+        data: {}
+    asserts:
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: file-sd
