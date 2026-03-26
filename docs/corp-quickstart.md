@@ -79,12 +79,23 @@ To build locally (e.g. for testing): `make build-grafana-plugins`
 2. StorageClass `spectrum-scale` is created if absent in the cluster (skipped if it already exists; fails if the manifest file is missing)
 3. `corp-sync-images.sh` reads `versions.yaml`, pulls images from GHCR/DockerHub, and pushes them to the corp registry (includes the `grafana-plugins` carrier image when listed under `custom_images`)
 4. `helmfile -e corp diff` previews changes
-5. `helmfile -e corp sync` deploys to the cluster
+5. `./scripts/helmfile-sync.sh corp` runs the Helmfile sync with a narrow StatefulSet immutable-field recovery path
 
 If `grafana_plugins_init: true` is set in `environments/corp/values.yaml`, the
 Grafana release mounts an `emptyDir`, runs an init container from the
 `grafana-plugins` image, and starts Grafana with `plugins: []` so no internet
 download is required from the cluster.
+
+## Helmfile sync retry flow
+
+`make corp-deploy`, `make corp-sync`, and `make homelab-sync` all use
+`./scripts/helmfile-sync.sh <environment>` instead of `helmfile sync` directly.
+The wrapper auto-recovers from StatefulSet immutable field errors (e.g. PVC size
+or storageClassName changes on vmstorage) by orphan-deleting only allowlisted
+StatefulSets and retrying the sync. Pods and PVCs remain running throughout.
+
+See [Helmfile Sync Retry Flow](helmfile-sync.md) for the full flow description,
+safety guards, and flowchart.
 
 ## Rollback
 
