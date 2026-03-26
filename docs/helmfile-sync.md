@@ -12,8 +12,8 @@ The wrapper detects this specific failure, orphan-deletes only allowlisted State
 
 1. Run `helmfile -e <environment> sync` and capture the output plus exit code.
 2. If the sync succeeds, print the output and exit normally.
-3. If the sync fails for a reason other than `field is immutable`, return the original failure unchanged.
-4. If the sync fails with an immutable-field error, scan the error output for allowlisted StatefulSet names.
+3. If the sync fails for a reason other than an immutable StatefulSet update error, return the original failure unchanged.
+4. If the sync fails with an immutable StatefulSet update error, scan the error output for allowlisted StatefulSet names.
 5. If no allowlisted StatefulSet is explicitly named in the error output, fail closed and delete nothing.
 6. If one or more allowlisted StatefulSets are named, delete only those StatefulSet objects with `kubectl delete statefulset ... --cascade=orphan`.
 7. Retry the same `helmfile -e <environment> sync`.
@@ -43,8 +43,8 @@ flowchart TD
 Capture output and exit code] --> B{Sync succeeded?}
     B -->|Yes| C[Print output
 Exit 0]
-    B -->|No| D{Output contains
-field is immutable?}
+    B -->|No| D{Output matches immutable
+StatefulSet error?}
     D -->|No| E[Print original error
 Exit with original failure]
     D -->|Yes| F[Find allowlisted StatefulSet names

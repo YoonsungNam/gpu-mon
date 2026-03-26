@@ -44,6 +44,12 @@ find_affected_statefulsets() {
   fi
 }
 
+has_statefulset_immutable_error() {
+  local output="$1"
+
+  grep -Eqi 'field is immutable|updates to statefulset spec for fields other than' <<<"$output"
+}
+
 echo "=== gpu-mon helmfile sync ($ENV) ==="
 
 # Attempt helmfile sync, capturing output and exit code separately.
@@ -59,9 +65,9 @@ if [ $RC -eq 0 ]; then
   exit 0
 fi
 
-# Check if the failure is due to immutable field errors.
-if ! echo "$OUTPUT" | grep -qi "field is immutable"; then
-  # Not an immutable field issue — surface the original error.
+# Check if the failure is due to an immutable StatefulSet update.
+if ! has_statefulset_immutable_error "$OUTPUT"; then
+  # Not an immutable StatefulSet issue — surface the original error.
   echo "$OUTPUT"
   exit "$RC"
 fi
