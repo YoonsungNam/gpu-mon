@@ -75,7 +75,7 @@ To build locally (e.g. for testing): `make build-grafana-plugins`
 
 ## What `make corp-deploy` does
 
-1. Pre-flight validation (`validate-corp-setup.sh`) checks symlinks and required files
+1. Pre-flight validation (`validate-corp-setup.sh`) checks symlinks and required files, prints the current `kubectl` context/server, and warns if the kubeconfig appears to go through a Rancher proxy endpoint
 2. StorageClass `spectrum-scale` is created if absent in the cluster (skipped if it already exists; fails if the manifest file is missing)
 3. `corp-sync-images.sh` reads `versions.yaml`, pulls images from GHCR/DockerHub, and pushes them to the corp registry (includes the `grafana-plugins` carrier image when listed under `custom_images`)
 4. `helmfile -e corp diff` previews changes

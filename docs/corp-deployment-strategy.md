@@ -247,13 +247,17 @@ corp-ensure-sc: corp-preflight ## Ensure required StorageClass exists for corp P
 	fi
 
 corp-sync: corp-ensure-sc ## Deploy to corp K8s cluster (helmfile only, no image sync)
-	helmfile -e corp sync
+	./scripts/helmfile-sync.sh corp
 
 corp-deploy: corp-ensure-sc ## Sync images + deploy to corp cluster (one-touch)
 	./scripts/corp-sync-images.sh $(CORP_REGISTRY)
 	helmfile -e corp diff
-	helmfile -e corp sync
+	./scripts/helmfile-sync.sh corp
 ```
+
+`corp-preflight` now also prints the current `kubectl` context/server and warns
+when the kubeconfig appears to use a Rancher proxy endpoint, so operators can
+see which cluster `kubectl` will target before deploy-time mutations run.
 
 ### Daily Workflow
 
