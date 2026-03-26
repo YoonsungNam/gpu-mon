@@ -88,82 +88,14 @@ download is required from the cluster.
 
 ## Helmfile sync retry flow
 
-`make corp-deploy`, `make corp-sync`, and `make homelab-sync` all call
-`./scripts/helmfile-sync.sh <environment>` instead of invoking `helmfile sync`
-directly.
+`make corp-deploy`, `make corp-sync`, and `make homelab-sync` all use
+`./scripts/helmfile-sync.sh <environment>` instead of `helmfile sync` directly.
+The wrapper auto-recovers from StatefulSet immutable field errors (e.g. PVC size
+or storageClassName changes on vmstorage) by orphan-deleting only allowlisted
+StatefulSets and retrying the sync. Pods and PVCs remain running throughout.
 
-The wrapper exists for one specific Kubernetes limitation: some StatefulSet
-fields are immutable after creation, especially fields under
-`volumeClaimTemplates`. If Helm tries to patch one of those fields in place, the
-API server rejects the update and the sync fails.
-
-### Flow description
-
-1. Run `helmfile -e <environment> sync` and capture the output plus exit code.
-2. If the sync succeeds, print the output and exit normally.
-3. If the sync fails for a reason other than `field is immutable`, return the original failure unchanged.
-4. If the sync fails with an immutable-field error, scan the error output for allowlisted StatefulSet names.
-5. If no allowlisted StatefulSet is explicitly named in the error output, fail closed and delete nothing.
-6. If one or more allowlisted StatefulSets are named, delete only those StatefulSet objects with `kubectl delete statefulset ... --cascade=orphan`.
-7. Retry the same `helmfile -e <environment> sync`.
-8. On the retry, Helm recreates the missing StatefulSet object with the new spec while the existing pods and PVCs remain in place.
-
-### Why orphan-delete is used
-
-- `--cascade=orphan` deletes the StatefulSet object only.
-- Existing pods keep running instead of being torn down immediately.
-- Existing PVCs remain attached to the workload identity.
-- The retry can recreate the controller object without automatically touching unrelated healthy resources.
-
-### Safety guard
-
-The recovery path is intentionally narrow.
-
-- The script only considers StatefulSets listed in its internal allowlist.
-- The script only orphan-deletes a StatefulSet if that exact name appears in the immutable-field error output.
-- If another resource fails, or a different StatefulSet such as `vector` fails, the wrapper exits with the original error and performs no deletion.
-
-### Flowchart
-
-```mermaid
-flowchart TD
-    A[Run helmfile -e env sync
-Capture output and exit code] --> B{Sync succeeded?}
-    B -->|Yes| C[Print output
-Exit 0]
-    B -->|No| D{Output contains
-field is immutable?}
-    D -->|No| E[Print original error
-Exit with original failure]
-    D -->|Yes| F[Find allowlisted StatefulSet names
-mentioned in the error output]
-    F --> G{Any allowlisted
-match found?}
-    G -->|No| H[Fail closed
-Delete nothing
-Exit with original failure]
-    G -->|Yes| I[Orphan-delete only matched StatefulSet objects
-Pods and PVCs stay in place]
-    I --> J[Retry helmfile -e env sync]
-    J --> K[Helm recreates StatefulSet object
-Workload resumes under new controller]
-```
-
-### Controller and workload effect
-
-```text
-Before orphan-delete:
-  StatefulSet ----owns----> Pods + PVCs
-
-After kubectl delete statefulset --cascade=orphan:
-  StatefulSet    removed
-  Pods           still running
-  PVCs           still present
-
-After retry sync:
-  Helm recreates StatefulSet object
-  Kubernetes re-associates the controller with the existing workload
-```
+See [`scripts/helmfile-sync.sh`](../scripts/helmfile-sync.sh) for the full
+implementation, allowlist, and safety guards.
 
 ## Rollback
 

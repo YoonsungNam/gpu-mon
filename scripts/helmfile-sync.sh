@@ -88,9 +88,10 @@ echo "[retry] Orphan-deleting only the affected StatefulSets named in the error 
 for entry in "${AFFECTED_STATEFULSETS[@]}"; do
   ns="${entry%%/*}"
   sts="${entry#*/}"
-  if kubectl get statefulset "$sts" -n "$ns" &>/dev/null; then
-    echo "[retry]   Orphan-deleting $ns/$sts..."
-    kubectl delete statefulset "$sts" -n "$ns" --cascade=orphan
+  echo "[retry]   Orphan-deleting $ns/$sts..."
+  if ! kubectl delete statefulset "$sts" -n "$ns" --cascade=orphan 2>/dev/null; then
+    echo "[retry]   $ns/$sts not found — already deleted, skipping."
+  else
     echo "[retry]   $ns/$sts deleted — pods still running."
   fi
 done
