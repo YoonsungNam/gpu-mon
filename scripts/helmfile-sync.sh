@@ -89,11 +89,17 @@ for entry in "${AFFECTED_STATEFULSETS[@]}"; do
   ns="${entry%%/*}"
   sts="${entry#*/}"
   echo "[retry]   Orphan-deleting $ns/$sts..."
-  if ! kubectl delete statefulset "$sts" -n "$ns" --cascade=orphan 2>/dev/null; then
-    echo "[retry]   $ns/$sts not found — already deleted, skipping."
-  else
+  DELETE_ERR=$(kubectl delete statefulset "$sts" -n "$ns" --cascade=orphan 2>&1) && {
     echo "[retry]   $ns/$sts deleted — pods still running."
-  fi
+  } || {
+    if echo "$DELETE_ERR" | grep -qi "not found"; then
+      echo "[retry]   $ns/$sts not found — already deleted, skipping."
+    else
+      echo "[retry]   Failed to delete $ns/$sts:" >&2
+      echo "$DELETE_ERR" >&2
+      exit 1
+    fi
+  }
 done
 
 echo "[retry] Re-running helmfile sync..."
