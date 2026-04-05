@@ -66,6 +66,15 @@ releases:
     version: "{{ index .Values.helm_charts "altinity-clickhouse-operator" }}"
     {{ end }}
 
+  # ─── ClickHouse Keeper ────────────────────────────────────────────────────
+  - name: clickhouse-keeper
+    namespace: clickhouse
+    chart: charts/clickhouse-keeper
+    needs:
+      - clickhouse/clickhouse-operator
+    values:
+      - environments/{{ .Environment.Name }}/keeper.yaml
+
   # ─── ClickHouse Cluster ───────────────────────────────────────────────────
   - name: clickhouse
     namespace: clickhouse
@@ -73,6 +82,7 @@ releases:
     disableValidationOnInstall: true  # CRD may be absent until clickhouse-operator installs it
     needs:
       - clickhouse/clickhouse-operator
+      - clickhouse/clickhouse-keeper
     values:
       - environments/{{ .Environment.Name }}/clickhouse.yaml
 
