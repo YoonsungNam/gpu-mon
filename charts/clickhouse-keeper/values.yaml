@@ -1,0 +1,18 @@
+replicaCount: 3
+image: clickhouse/clickhouse-keeper:24.8
+
+ports:
+  client: 9181
+  raft: 9234
+
+storage:
+  size: 10Gi
+  storageClassName: ""   # Use cluster default SC if empty
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
