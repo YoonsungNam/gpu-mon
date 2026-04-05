@@ -19,3 +19,16 @@ clickhouse:
 schema_init:
   enabled: true
   image: clickhouse/clickhouse-client:24.8
+
+# keeper: set enabled=true and list nodes when clickhouse-keeper is deployed
+# Required for replicasCount > 1
+keeper:
+  enabled: false
+  nodes: []
+  # nodes:
+  #   - host: clickhouse-keeper-0.clickhouse-keeper-headless.clickhouse.svc
+  #     port: 9181
+  #   - host: clickhouse-keeper-1.clickhouse-keeper-headless.clickhouse.svc
+  #     port: 9181
+  #   - host: clickhouse-keeper-2.clickhouse-keeper-headless.clickhouse.svc
+  #     port: 9181
