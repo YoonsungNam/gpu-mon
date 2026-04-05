@@ -1,0 +1,4 @@
+# ClickHouse Keeper values — homelab overrides
+replicaCount: 3
+storage:
+  size: 5Gi
