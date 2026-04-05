@@ -10,6 +10,14 @@ spec:
         layout:
           shardsCount: {{ .Values.clickhouse.cluster.layout.shardsCount }}
           replicasCount: {{ .Values.clickhouse.cluster.layout.replicasCount }}
+    {{- if .Values.keeper.enabled }}
+    zookeeper:
+      nodes:
+        {{- range .Values.keeper.nodes }}
+        - host: {{ .host }}
+          port: {{ .port }}
+        {{- end }}
+    {{- end }}
     settings:
       max_connections: "4096"
       keep_alive_timeout: "3"
