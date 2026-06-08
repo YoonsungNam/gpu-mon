@@ -12,6 +12,7 @@ Actual production values live in a separate private repo and are symlinked here 
 | `vmagent.yaml.example` | Central vmagent scrape configuration (File SD targets) |
 | `victoriametrics.yaml.example` | VictoriaMetrics cluster sizing and retention |
 | `clickhouse.yaml.example` | ClickHouse cluster layout, storage, and schema init |
+| `keeper.yaml.example` | ClickHouse Keeper sizing for replicated ClickHouse clusters |
 | `grafana.yaml.example` | Grafana datasources, dashboards, ingress, and plugins |
 | `vector.yaml.example` | Vector aggregator sources, transforms, and ClickHouse sink |
 | `metadata-collector.yaml.example` | Metadata collector S2/VMware integration |

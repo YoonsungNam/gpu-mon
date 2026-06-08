@@ -67,6 +67,7 @@ releases:
     {{ end }}
 
   # ─── ClickHouse Keeper ────────────────────────────────────────────────────
+  {{ if .Values.clickhouse_keeper.enabled }}
   - name: clickhouse-keeper
     namespace: clickhouse
     chart: charts/clickhouse-keeper
@@ -74,6 +75,7 @@ releases:
       - clickhouse/clickhouse-operator
     values:
       - environments/{{ .Environment.Name }}/keeper.yaml
+  {{ end }}
 
   # ─── ClickHouse Cluster ───────────────────────────────────────────────────
   - name: clickhouse
@@ -82,7 +84,9 @@ releases:
     disableValidationOnInstall: true  # CRD may be absent until clickhouse-operator installs it
     needs:
       - clickhouse/clickhouse-operator
+      {{ if .Values.clickhouse_keeper.enabled }}
       - clickhouse/clickhouse-keeper
+      {{ end }}
     values:
       - environments/{{ .Environment.Name }}/clickhouse.yaml
 
