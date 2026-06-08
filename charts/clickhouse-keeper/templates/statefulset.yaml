@@ -8,6 +8,9 @@ metadata:
 spec:
   serviceName: {{ include "clickhouse-keeper.headlessServiceName" . }}
   replicas: {{ .Values.replicaCount }}
+  # Start all keeper pods at once so the raft quorum can form on first boot;
+  # OrderedReady can stall because each pod's readiness depends on its peers.
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       {{- include "clickhouse-keeper.selectorLabels" . | nindent 6 }}
