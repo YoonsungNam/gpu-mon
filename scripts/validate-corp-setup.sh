@@ -12,6 +12,7 @@ REQUIRED_VALUES=(
   vmagent.yaml
   victoriametrics.yaml
   clickhouse.yaml
+  keeper.yaml
   grafana.yaml
   vector.yaml
 )
