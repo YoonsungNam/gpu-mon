@@ -1,0 +1,12 @@
+# ClickHouse Keeper values — homelab overrides.
+#
+# INERT BY DEFAULT: homelab inherits clickhouse_keeper.enabled=false from
+# environments/defaults.yaml, so the keeper release is not deployed and this
+# file is not loaded. It exists for opt-in testing of the keeper chart, e.g.:
+#   helmfile -e homelab --state-values-set clickhouse_keeper.enabled=true template
+# To also wire ClickHouse to keeper in homelab, add `keeper.nodes` to
+# environments/homelab/clickhouse.yaml (replicasCount is 1 there, so it is not
+# required — the single-replica CHI runs fine without a zookeeper block).
+replicaCount: 3
+storage:
+  size: 5Gi

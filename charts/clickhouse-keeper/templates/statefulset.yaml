@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "clickhouse-keeper.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "clickhouse-keeper.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "clickhouse-keeper.headlessServiceName" . }}
+  replicas: {{ .Values.replicaCount }}
+  # Start all keeper pods at once so the raft quorum can form on first boot;
+  # OrderedReady can stall because each pod's readiness depends on its peers.
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      {{- include "clickhouse-keeper.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "clickhouse-keeper.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- if .Values.affinity }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- else if .Values.podAntiAffinity }}
+      # Soft (preferred) anti-affinity: spread replicas across nodes when possible.
+      # Not "required", so 3 replicas still schedule on 1-2 node clusters.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "clickhouse-keeper.selectorLabels" . | nindent 20 }}
+      {{- end }}
+      containers:
+        - name: clickhouse-keeper
+          image: {{ .Values.image }}
+          command: ["/bin/sh", "/etc/clickhouse-keeper/entrypoint.sh"]
+          ports:
+            - name: client
+              containerPort: {{ .Values.ports.client }}
+              protocol: TCP
+            - name: raft
+              containerPort: {{ .Values.ports.raft }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/clickhouse-keeper
+            - name: data
+              mountPath: /var/lib/clickhouse-keeper
+          readinessProbe:
+            tcpSocket:
+              port: client
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: client
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "clickhouse-keeper.fullname" . }}-config
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        {{- if .Values.storage.storageClassName }}
+        storageClassName: {{ .Values.storage.storageClassName }}
+        {{- end }}
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}

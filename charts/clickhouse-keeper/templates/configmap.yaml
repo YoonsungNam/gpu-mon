@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "clickhouse-keeper.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "clickhouse-keeper.labels" . | nindent 4 }}
+data:
+  keeper_config.xml: |
+    <clickhouse>
+        <!-- Bind to all interfaces so peers (raft) and ClickHouse (client) can connect.
+             Without this, keeper listens on localhost only and the raft quorum never forms. -->
+        <listen_host>0.0.0.0</listen_host>
+        <keeper_server>
+            <tcp_port>{{ .Values.ports.client }}</tcp_port>
+            <server_id>__SERVER_ID__</server_id>
+            <log_storage_path>/var/lib/clickhouse-keeper/log</log_storage_path>
+            <snapshot_storage_path>/var/lib/clickhouse-keeper/snapshots</snapshot_storage_path>
+            <coordination_settings>
+                <operation_timeout_ms>10000</operation_timeout_ms>
+                <session_timeout_ms>30000</session_timeout_ms>
+                <raft_logs_level>warning</raft_logs_level>
+            </coordination_settings>
+            <raft_configuration>
+              {{- range $i, $e := until (.Values.replicaCount | int) }}
+                <server>
+                    <id>{{ add $i 1 }}</id>
+                    <hostname>{{ include "clickhouse-keeper.fullname" $ }}-{{ $i }}.{{ include "clickhouse-keeper.headlessServiceName" $ }}.{{ $.Release.Namespace }}.svc</hostname>
+                    <port>{{ $.Values.ports.raft }}</port>
+                </server>
+              {{- end }}
+            </raft_configuration>
+        </keeper_server>
+    </clickhouse>
+  entrypoint.sh: |
+    #!/bin/sh
+    set -e
+    ORDINAL="${HOSTNAME##*-}"
+    SERVER_ID=$((ORDINAL + 1))
+    sed "s/__SERVER_ID__/${SERVER_ID}/" /etc/clickhouse-keeper/keeper_config.xml \
+      > /tmp/keeper_config.xml
+    exec clickhouse-keeper --config /tmp/keeper_config.xml

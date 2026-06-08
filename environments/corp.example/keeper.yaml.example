@@ -1,0 +1,19 @@
+# ClickHouse Keeper values — production overrides template.
+# Copy to environments/corp/keeper.yaml (in the private repo) and adjust sizing.
+#
+# Required when clickhouse.cluster.layout.replicasCount > 1: ClickHouse needs a
+# ZooKeeper-compatible coordination service for replication. The nodes below must
+# also be listed in clickhouse.yaml under `keeper.nodes` so the
+# ClickHouseInstallation points at this keeper cluster.
+
+replicaCount: 3                  # Odd number for a raft quorum (3 or 5)
+storage:
+  size: 20Gi                     # Coordination logs/snapshots; grows with table count
+  storageClassName: "spectrum-scale"
+resources:
+  requests:
+    cpu: "500m"
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi

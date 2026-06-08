@@ -1,0 +1,30 @@
+suite: clickhouse-keeper headless service
+templates:
+  - templates/service-headless.yaml
+
+tests:
+  - it: renders a headless Service
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: clickhouse-keeper-headless
+      - equal:
+          path: spec.clusterIP
+          value: None
+
+  - it: publishes not-ready pod addresses so raft DNS resolves during bootstrap
+    asserts:
+      - equal:
+          path: spec.publishNotReadyAddresses
+          value: true
+
+  - it: exposes the client and raft ports
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 9181
+      - equal:
+          path: spec.ports[1].port
+          value: 9234

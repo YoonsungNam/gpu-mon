@@ -1,0 +1,6 @@
+apiVersion: v2
+name: clickhouse-keeper
+description: ClickHouse Keeper — ZooKeeper-compatible coordination service for ClickHouse replication
+type: application
+version: 0.1.0
+appVersion: "24.8"

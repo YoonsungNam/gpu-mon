@@ -1,0 +1,25 @@
+replicaCount: 3
+image: clickhouse/clickhouse-keeper:24.8
+
+ports:
+  client: 9181
+  raft: 9234
+
+storage:
+  size: 10Gi
+  storageClassName: ""   # Use cluster default SC if empty
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# Soft pod anti-affinity spreads keeper replicas across nodes when possible.
+# It is "preferred" (best-effort), so all replicas still schedule on 1-2 node
+# clusters. Set to false to disable. For full control, set `affinity` below
+# (a non-empty value takes precedence over this toggle).
+podAntiAffinity: true
+affinity: {}

@@ -12,6 +12,7 @@ Actual production values live in a separate private repo and are symlinked here 
 | `vmagent.yaml.example` | Central vmagent scrape configuration (File SD targets) |
 | `victoriametrics.yaml.example` | VictoriaMetrics cluster sizing and retention |
 | `clickhouse.yaml.example` | ClickHouse cluster layout, storage, and schema init |
+| `keeper.yaml.example` | ClickHouse Keeper sizing for replicated ClickHouse clusters |
 | `grafana.yaml.example` | Grafana datasources, dashboards, ingress, and plugins |
 | `vector.yaml.example` | Vector aggregator sources, transforms, and ClickHouse sink |
 | `metadata-collector.yaml.example` | Metadata collector S2/VMware integration |
@@ -21,8 +22,10 @@ Actual production values live in a separate private repo and are symlinked here 
 | `targets/inference-servers.json.example` | File SD target list for inference servers |
 
 All Helm values YAML files above are required for `helmfile -e corp sync`
-to succeed (except `metadata-collector.yaml.example`, which is only needed
-when `metadata_collector.enabled: true` in `values.yaml`).
+to succeed, except for these feature-gated files, which are only loaded when
+their flag is enabled in `values.yaml`:
+- `metadata-collector.yaml.example` — when `metadata_collector.enabled: true`
+- `keeper.yaml.example` — when `clickhouse_keeper.enabled: true`
 `storageclass.yaml.example` is a separate cluster prerequisite used by
 `make corp-deploy` and `make corp-sync` when the StorageClass is absent.
 Target JSON files are required when the corresponding scrape jobs are
