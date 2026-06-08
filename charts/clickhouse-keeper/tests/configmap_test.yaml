@@ -1,0 +1,54 @@
+suite: clickhouse-keeper configmap
+templates:
+  - templates/configmap.yaml
+
+tests:
+  - it: renders a ConfigMap with the keeper config and entrypoint
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - isNotNull:
+          path: data["keeper_config.xml"]
+      - isNotNull:
+          path: data["entrypoint.sh"]
+
+  - it: binds to all interfaces so raft peers and clients can connect
+    asserts:
+      - matchRegex:
+          path: data["keeper_config.xml"]
+          pattern: "<listen_host>0.0.0.0</listen_host>"
+
+  - it: serves the client protocol on port 9181
+    asserts:
+      - matchRegex:
+          path: data["keeper_config.xml"]
+          pattern: "<tcp_port>9181</tcp_port>"
+
+  - it: uses the raft port 9234 in the raft configuration
+    asserts:
+      - matchRegex:
+          path: data["keeper_config.xml"]
+          pattern: "<port>9234</port>"
+
+  - it: generates one raft server per replica
+    set:
+      replicaCount: 3
+    asserts:
+      - matchRegex:
+          path: data["keeper_config.xml"]
+          pattern: "<id>1</id>"
+      - matchRegex:
+          path: data["keeper_config.xml"]
+          pattern: "<id>3</id>"
+      - notMatchRegex:
+          path: data["keeper_config.xml"]
+          pattern: "<id>4</id>"
+
+  - it: derives server_id from the pod ordinal and execs keeper
+    asserts:
+      - matchRegex:
+          path: data["entrypoint.sh"]
+          pattern: 'SERVER_ID=\$\(\(ORDINAL \+ 1\)\)'
+      - matchRegex:
+          path: data["entrypoint.sh"]
+          pattern: "exec clickhouse-keeper --config"

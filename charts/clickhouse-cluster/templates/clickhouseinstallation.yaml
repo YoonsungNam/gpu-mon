@@ -1,3 +1,16 @@
+{{- /*
+  Preflight guard: ReplicatedMergeTree (replicasCount > 1) needs a working
+  ClickHouse Keeper / ZooKeeper endpoint. Fail the render (deploy-time) rather
+  than let a replicated cluster come up with no zookeeper block and silently go
+  read-only. The zookeeper block below is only emitted when keeper coordination
+  is both enabled and has nodes, so an enabled-but-empty config (e.g. a
+  single-replica opt-in test) renders cleanly without a malformed block.
+*/ -}}
+{{- if gt (int .Values.clickhouse.cluster.layout.replicasCount) 1 }}
+  {{- if or (not .Values.keeper.enabled) (not .Values.keeper.nodes) }}
+    {{- fail "clickhouse.cluster.layout.replicasCount > 1 requires keeper coordination: set clickhouse_keeper.enabled=true (Helmfile) / keeper.enabled=true (chart) and populate keeper.nodes in this environment's clickhouse.yaml." }}
+  {{- end }}
+{{- end }}
 apiVersion: clickhouse.altinity.com/v1
 kind: ClickHouseInstallation
 metadata:
@@ -10,7 +23,7 @@ spec:
         layout:
           shardsCount: {{ .Values.clickhouse.cluster.layout.shardsCount }}
           replicasCount: {{ .Values.clickhouse.cluster.layout.replicasCount }}
-    {{- if .Values.keeper.enabled }}
+    {{- if and .Values.keeper.enabled .Values.keeper.nodes }}
     zookeeper:
       nodes:
         {{- range .Values.keeper.nodes }}

@@ -12,14 +12,17 @@ REQUIRED_VALUES=(
   vmagent.yaml
   victoriametrics.yaml
   clickhouse.yaml
-  keeper.yaml
   grafana.yaml
   vector.yaml
 )
 
-# metadata-collector is conditional on metadata_collector.enabled
+# Feature-gated values files — required only when their feature flag is enabled,
+# so a missing one is a warning, not an error.
+#   metadata-collector.yaml -> metadata_collector.enabled
+#   keeper.yaml             -> clickhouse_keeper.enabled
 OPTIONAL_VALUES=(
   metadata-collector.yaml
+  keeper.yaml
 )
 
 errors=0
@@ -47,10 +50,15 @@ if [ ${#missing[@]} -gt 0 ]; then
   done
 fi
 
-# 2b. Warn about missing optional values files
+# 2b. Warn about missing optional (feature-gated) values files
 for f in "${OPTIONAL_VALUES[@]}"; do
   if [ ! -f "${CORP_DIR}/${f}" ]; then
-    echo "WARN: Optional file missing: $f (needed if metadata_collector.enabled=true)"
+    case "$f" in
+      metadata-collector.yaml) reason="needed if metadata_collector.enabled=true" ;;
+      keeper.yaml)             reason="needed if clickhouse_keeper.enabled=true" ;;
+      *)                       reason="needed only when its feature is enabled" ;;
+    esac
+    echo "WARN: Optional file missing: $f ($reason)"
   fi
 done
 

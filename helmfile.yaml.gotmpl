@@ -89,6 +89,11 @@ releases:
       {{ end }}
     values:
       - environments/{{ .Environment.Name }}/clickhouse.yaml
+      # Single source of truth: the CHI zookeeper block is gated by the same
+      # clickhouse_keeper.enabled flag that gates the keeper release above.
+      # The env clickhouse.yaml only supplies keeper.nodes (deep-merged here).
+      - keeper:
+          enabled: {{ .Values.clickhouse_keeper.enabled }}
 
   # ─── Grafana ──────────────────────────────────────────────────────────────
   - name: grafana

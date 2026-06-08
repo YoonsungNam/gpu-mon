@@ -25,9 +25,10 @@ schema_init:
   schemas_path: /schemas
 
 # Keeper coordination — required because replicasCount > 1.
-# Hosts must match the clickhouse-keeper StatefulSet (see keeper.yaml).
+# `keeper.enabled` is driven by `clickhouse_keeper.enabled` in values.yaml
+# (injected by the Helmfile), so only the node list is set here. Hosts must
+# match the clickhouse-keeper StatefulSet (see keeper.yaml).
 keeper:
-  enabled: true
   nodes:
     - host: clickhouse-keeper-0.clickhouse-keeper-headless.clickhouse.svc
       port: 9181

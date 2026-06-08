@@ -22,8 +22,10 @@ Actual production values live in a separate private repo and are symlinked here 
 | `targets/inference-servers.json.example` | File SD target list for inference servers |
 
 All Helm values YAML files above are required for `helmfile -e corp sync`
-to succeed (except `metadata-collector.yaml.example`, which is only needed
-when `metadata_collector.enabled: true` in `values.yaml`).
+to succeed, except for these feature-gated files, which are only loaded when
+their flag is enabled in `values.yaml`:
+- `metadata-collector.yaml.example` — when `metadata_collector.enabled: true`
+- `keeper.yaml.example` — when `clickhouse_keeper.enabled: true`
 `storageclass.yaml.example` is a separate cluster prerequisite used by
 `make corp-deploy` and `make corp-sync` when the StorageClass is absent.
 Target JSON files are required when the corresponding scrape jobs are

@@ -1,0 +1,98 @@
+suite: clickhouse-keeper statefulset
+templates:
+  - templates/statefulset.yaml
+
+tests:
+  - it: renders a StatefulSet with the default replica count
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: starts all pods in parallel so the raft quorum can form on first boot
+    asserts:
+      - equal:
+          path: spec.podManagementPolicy
+          value: Parallel
+
+  - it: binds the headless service for stable pod DNS
+    asserts:
+      - equal:
+          path: spec.serviceName
+          value: clickhouse-keeper-headless
+
+  - it: uses the default keeper image
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: clickhouse/clickhouse-keeper:24.8
+
+  - it: exposes the client (9181) and raft (9234) ports
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 9181
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].containerPort
+          value: 9234
+
+  - it: mounts the config and data volumes
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: config
+            mountPath: /etc/clickhouse-keeper
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: data
+            mountPath: /var/lib/clickhouse-keeper
+
+  - it: requests a per-replica data PVC
+    asserts:
+      - equal:
+          path: spec.volumeClaimTemplates[0].metadata.name
+          value: data
+
+  - it: adds soft pod anti-affinity on hostname by default
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].weight
+          value: 100
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.topologyKey
+          value: kubernetes.io/hostname
+
+  - it: omits affinity when podAntiAffinity is disabled
+    set:
+      podAntiAffinity: false
+    asserts:
+      - isNull:
+          path: spec.template.spec.affinity
+
+  - it: lets a custom affinity override the default anti-affinity
+    set:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: disktype
+                    operator: In
+                    values: [ssd]
+    asserts:
+      - isNotNull:
+          path: spec.template.spec.affinity.nodeAffinity
+      - isNull:
+          path: spec.template.spec.affinity.podAntiAffinity
+
+  - it: scales the replica count from values
+    set:
+      replicaCount: 5
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 5

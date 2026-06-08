@@ -159,3 +159,6 @@ jobs:
 
       - name: Run helm unit tests — metadata-collector
         run: helm unittest charts/metadata-collector
+
+      - name: Run helm unit tests — clickhouse-keeper
+        run: helm unittest charts/clickhouse-keeper
