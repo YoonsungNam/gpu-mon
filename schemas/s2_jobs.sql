@@ -1,30 +1,32 @@
--- s2_jobs: Time-series history of S2 batch scheduler jobs.
--- Each poll inserts a new row (running/pending jobs polled every 60s).
--- Enables: job wait time analysis, GPU-Hours calculation, per-job GPU Util JOIN.
+-- s2_jobs: S2 batch scheduler jobs (BMI + phd source).
+-- ReplacingMergeTree keeps the latest-collected row (latest status) per
+-- (grid_name, job_id, submit_ts). Reads use FINAL. Completed jobs are collected
+-- incrementally by end_time; the overlap window's duplicates collapse here.
 -- TTL: 6 months.
 
 CREATE TABLE IF NOT EXISTS gpu_monitoring.s2_jobs ON CLUSTER '{cluster}'
 (
-    collected_at  DateTime64(3)             CODEC(Delta, ZSTD),
-    job_id        String,
-    job_name      String,
-    user_id       String,
-    team          String,
-    queue         LowCardinality(String),
-    status        LowCardinality(String),   -- running, pending, completed, failed, cancelled
-    submit_time   Nullable(DateTime64(3)),
-    start_time    Nullable(DateTime64(3)),
-    end_time      Nullable(DateTime64(3)),
-    node_list     Array(String),            -- ["gpu-node-01", "gpu-node-03"]
-    gpu_count     UInt16,
-    gpu_indices   Array(UInt8),             -- [0, 1, 2, 3]
-    cpu_count     UInt16,
-    memory_mb     UInt32,
-    exit_code     Nullable(Int32),
-    metadata      String                   -- JSON: extra fields from S2 API
+    collected_at    DateTime64(3)            CODEC(Delta, ZSTD),
+    grid_name       LowCardinality(String),
+    job_id          UInt64,
+    user            String,
+    status          LowCardinality(String),   -- Running, Queued, Done, Failed, Stopped
+    project         LowCardinality(String),
+    gpu_per_node    UInt16,
+    num_nodes       UInt16,
+    total_gpus      UInt32,
+    submit_time     Nullable(DateTime64(3)),
+    start_time      Nullable(DateTime64(3)),
+    end_time        Nullable(DateTime64(3)),
+    submit_ts       Float64,                  -- submit time as Unix epoch (part of the job key)
+    resources       Array(String),
+    gpu_indices_raw String,                   -- raw _gpu_indices property
+    gpu_allocations String,                   -- JSON: [{host, gpu_ids}]
+    properties_json String,                   -- JSON: full phd properties map
+    raw_json        String                    -- JSON: raw parsed job
 )
-ENGINE = MergeTree()
+ENGINE = ReplacingMergeTree(collected_at)
 PARTITION BY toYYYYMM(collected_at)
-ORDER BY (status, collected_at, job_id)
+ORDER BY (grid_name, job_id, submit_ts)
 TTL toDateTime(collected_at) + INTERVAL 180 DAY
 SETTINGS index_granularity = 8192;
