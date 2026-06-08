@@ -16,3 +16,10 @@ resources:
   limits:
     cpu: "1"
     memory: 1Gi
+
+# Soft pod anti-affinity spreads keeper replicas across nodes when possible.
+# It is "preferred" (best-effort), so all replicas still schedule on 1-2 node
+# clusters. Set to false to disable. For full control, set `affinity` below
+# (a non-empty value takes precedence over this toggle).
+podAntiAffinity: true
+affinity: {}

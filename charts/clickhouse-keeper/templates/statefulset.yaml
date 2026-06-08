@@ -19,6 +19,22 @@ spec:
       labels:
         {{- include "clickhouse-keeper.selectorLabels" . | nindent 8 }}
     spec:
+      {{- if .Values.affinity }}
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      {{- else if .Values.podAntiAffinity }}
+      # Soft (preferred) anti-affinity: spread replicas across nodes when possible.
+      # Not "required", so 3 replicas still schedule on 1-2 node clusters.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "clickhouse-keeper.selectorLabels" . | nindent 20 }}
+      {{- end }}
       containers:
         - name: clickhouse-keeper
           image: {{ .Values.image }}
