@@ -18,8 +18,10 @@ Resolves the cluster layout from ``environments/<env>/clickhouse.yaml``, falling
 template, e.g. ``... corp.example``).
 
 Env vars:
-    WARN_ONLY=1   Report the mismatch as a warning and exit 0 (for an aspirational
-                  template that intentionally precedes a schema migration).
+    WARN_ONLY=1   Report a mismatch (or a missing values file) as a warning and exit 0
+                  (for an aspirational template that intentionally precedes a schema
+                  migration). Without it, a missing values file for the requested
+                  environment is a hard failure.
 
 Stdlib only — no PyYAML / yq required.
 """
@@ -133,9 +135,18 @@ def main(argv: list[str]) -> int:
 
     values_file = _resolve_values_file(env)
     if values_file is None:
-        print(f"SKIP: no clickhouse values for '{env}' "
-              f"(looked for environments/{env}/clickhouse.yaml[.example]).")
-        return 0
+        msg = (f"no clickhouse values for '{env}' "
+               f"(looked for environments/{env}/clickhouse.yaml[.example]).")
+        if warn_only:
+            print(f"SKIP (WARN_ONLY=1): {msg}")
+            return 0
+        # A guard that silently passes when its input disappears is a soft-fail:
+        # a renamed/removed values file would mask a real misconfiguration. Treat a
+        # missing file for a deployable environment as an error.
+        print(f"FAILED: {msg}")
+        print("A deployable environment must ship a clickhouse values file for the "
+              "guard to check it. Set WARN_ONLY=1 to downgrade this to a skip.")
+        return 1
 
     replicas = effective_replicas(values_file)
     rel = os.path.relpath(values_file, REPO_ROOT)

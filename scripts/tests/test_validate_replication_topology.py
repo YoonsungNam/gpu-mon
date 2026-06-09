@@ -115,3 +115,15 @@ def test_scan_empty_dir_no_crash(tmp_path):
 def test_scan_dir_without_sql(tmp_path):
     (tmp_path / "readme.md").write_text("not sql")
     assert vrt.scan_schemas(str(tmp_path)) == []
+
+
+# ── missing values file (soft-fail guard) ───────────────────────────────────
+def test_main_missing_env_hard_fails(monkeypatch):
+    # A deployable env whose values file is absent must fail, not silently pass.
+    monkeypatch.delenv("WARN_ONLY", raising=False)
+    assert vrt.main(["prog", "does-not-exist-env"]) == 1
+
+
+def test_main_missing_env_warn_only_skips(monkeypatch):
+    monkeypatch.setenv("WARN_ONLY", "1")
+    assert vrt.main(["prog", "does-not-exist-env"]) == 0
