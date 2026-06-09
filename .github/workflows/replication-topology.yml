@@ -1,0 +1,42 @@
+---
+# Replication-topology guard — fails CI when an environment declares
+# clickhouse.cluster.layout.replicasCount > 1 while any schema in schemas/*.sql
+# uses a non-replicated MergeTree-family engine (replicasCount > 1 gives real HA
+# only with Replicated* engines). See scripts/validate_replication_topology.py.
+
+name: Replication Topology Guard
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  guard:
+    name: replication-topology guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Guard deployable environments (hard fail)
+        run: python3 scripts/validate_replication_topology.py homelab
+
+      - name: Lint corp.example template (advisory)
+        # corp.example is an aspirational template; surface the mismatch without
+        # blocking. Flip to a hard check once corp picks replicasCount=1 or
+        # converts the schemas to Replicated* engines.
+        env:
+          WARN_ONLY: "1"
+        run: python3 scripts/validate_replication_topology.py corp.example
+
+      - name: Unit-test the guard
+        run: |
+          pip install pytest
+          pytest scripts/tests/test_validate_replication_topology.py -v
