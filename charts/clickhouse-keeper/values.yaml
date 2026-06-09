@@ -23,3 +23,15 @@ resources:
 # (a non-empty value takes precedence over this toggle).
 podAntiAffinity: true
 affinity: {}
+
+# PodDisruptionBudget guards the raft quorum against *voluntary* disruptions
+# (node drains, rolling node upgrades). On a small (1-2 node) cluster the soft
+# anti-affinity above packs replicas onto fewer nodes (e.g. 2+1 on two nodes), so
+# without a PDB a single `kubectl drain` can evict two keeper pods at once and
+# break the quorum. maxUnavailable: 1 keeps a 2-of-3 majority during drains.
+# NOTE: a PDB only blocks *voluntary* evictions — it cannot protect against an
+# *unplanned* loss of the node hosting two pods. True node-failure HA needs a
+# third schedulable node (and ideally hard anti-affinity via `affinity` above).
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1

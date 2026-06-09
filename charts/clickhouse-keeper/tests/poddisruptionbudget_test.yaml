@@ -1,0 +1,35 @@
+suite: clickhouse-keeper poddisruptionbudget
+templates:
+  - templates/poddisruptionbudget.yaml
+
+tests:
+  - it: renders a PDB by default that keeps a raft majority during drains
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: apiVersion
+          value: policy/v1
+      - equal:
+          path: metadata.name
+          value: clickhouse-keeper
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+      - isNotEmpty:
+          path: spec.selector.matchLabels
+
+  - it: is not rendered when disabled
+    set:
+      podDisruptionBudget.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: honours a custom maxUnavailable
+    set:
+      podDisruptionBudget.maxUnavailable: 2
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 2
