@@ -11,8 +11,9 @@ It is written for a live cluster where:
 - The `ClickHouseInstallation` (CHI) currently references it via
   `zookeeper.nodes: [{host: clickhouse-keeper.monitoring.svc.cluster.local, port: 2181}]`.
 - The new keeper is a fresh 3-node cluster in the **`clickhouse`** namespace
-  (client port `9181`), enabled per environment via `keeper.yaml` and the CHI's
-  `keeper.enabled` / `keeper.nodes` values.
+  (client port `9181`), gated by the Helmfile state value `clickhouse_keeper.enabled`
+  (which deploys the keeper release **and** injects the CHI's `keeper.enabled`), with the
+  node list supplied via `keeper.nodes` in the environment's `clickhouse.yaml`.
 
 > ⚠️ **This is a cutover, not an in-place upgrade.** The new keeper starts **empty**.
 > ClickHouse stores its replication coordination metadata (replica registration, log
@@ -27,7 +28,21 @@ It is written for a live cluster where:
 - A maintenance window with **ingestion paused** (metadata-collector, ch-uploader, and any
   other writer to the ClickHouse cluster).
 - `charts/clickhouse-keeper` chart merged (PR #66) and the corp/homelab `keeper.yaml`
-  + CHI `keeper.enabled/keeper.nodes` values ready (corp PR #24).
+  + `keeper.nodes` values ready (corp PR #24).
+- **The enable gate.** The Helmfile state value `clickhouse_keeper.enabled` (default `false`
+  in `environments/defaults.yaml`) is the single source of truth: it gates **both** the
+  `clickhouse-keeper` release **and** the CHI's `zookeeper` block (the Helmfile injects
+  `keeper.enabled` into the cluster release from it, overriding anything set in
+  `clickhouse.yaml`). corp sets it in `environments/corp/values.yaml`; for an ad-hoc run pass
+  `--state-values-set clickhouse_keeper.enabled=true` on every `helmfile` command below.
+  > ⚠️ Once this flag is persisted `true`, **any** full `helmfile -e <env> apply` (CI,
+  > GitOps, or another operator) will repoint ClickHouse at the new empty keeper and turn all
+  > `Replicated*` tables read-only — outside your maintenance window. Between Section 1 and
+  > Section 2, enable it ephemerally (`--state-values-set`) or run only targeted (`-l name=…`)
+  > applies.
+- For `replicasCount > 1` (e.g. corp), the CHI chart **fails the render** if keeper is enabled
+  but `keeper.nodes` is empty, or if keeper is disabled. Always set `clickhouse_keeper.enabled`
+  and `keeper.nodes` together. (homelab is `replicasCount: 1` and is unaffected.)
 - Confirm the keeper config binds to all interfaces (`<listen_host>0.0.0.0</listen_host>`)
   and the StatefulSet uses `podManagementPolicy: Parallel` — both required for the
   3-node raft quorum to form. (Already in the chart.)
@@ -48,22 +63,41 @@ ORDER BY database, table;
 Bring up the 3-node keeper **without** repointing ClickHouse. This lets you validate quorum
 in isolation; the old keeper keeps serving ClickHouse the whole time.
 
+The `clickhouse-keeper` release is gated by `clickhouse_keeper.enabled` (default `false`), so
+enable it for **this command only** — that deploys the keeper without yet arming the CHI's
+zookeeper block. (If the gate is off, `helmfile` exits non-zero with `no releases found that
+matches specified selector(name=clickhouse-keeper)`; enable it and re-run.)
+
 ```sh
-helmfile -e <env> -l name=clickhouse-keeper apply
+helmfile -e <env> --state-values-set clickhouse_keeper.enabled=true -l name=clickhouse-keeper apply
 ```
+
+> corp persists `clickhouse_keeper.enabled: true` in `values.yaml`, so it can drop the
+> `--state-values-set` flag here — but it must then use only targeted `-l name=…` applies
+> until the Section 2 cutover, to avoid an unrelated full apply repointing ClickHouse early.
 
 Verify all three pods are Running and a leader is elected:
 
 ```sh
 kubectl -n clickhouse get pod -l app.kubernetes.io/name=clickhouse-keeper
 
-# Quorum health via 4-letter words (ruok/mntr are allowed by default):
+# Quorum health via 4-letter words. bash is present in the image (the entrypoint's /bin/sh is
+# dash, which lacks /dev/tcp); ruok/mntr are in keeper's default whitelist, so no configmap
+# change is needed. clickhouse-keeper-client speaks the znode protocol (not 4lw) and is not
+# used here.
 for i in 0 1 2; do
   echo "== keeper-$i =="
   kubectl -n clickhouse exec clickhouse-keeper-$i -- \
-    sh -c 'echo ruok | timeout 2 clickhouse-keeper-client -q "" 2>/dev/null || echo ruok | (exec 3<>/dev/tcp/127.0.0.1/9181; cat >&3; cat <&3)'
+    bash -c 'exec 3<>/dev/tcp/127.0.0.1/9181; printf ruok >&3; timeout 2 cat <&3; echo'
 done
-# Expect "imok" from each. "mntr" shows zk_server_state=leader on exactly one node.
+# Expect "imok" from each.
+
+# Roles: mntr reports zk_server_state — expect leader on exactly one node, follower on two.
+for i in 0 1 2; do
+  echo "== keeper-$i =="
+  kubectl -n clickhouse exec clickhouse-keeper-$i -- \
+    bash -c 'exec 3<>/dev/tcp/127.0.0.1/9181; printf mntr >&3; timeout 2 cat <&3' | grep zk_server_state
+done
 ```
 
 Do **not** proceed until exactly one `leader` and two `follower` nodes are reported.
@@ -74,12 +108,20 @@ Do **not** proceed until exactly one `leader` and two `follower` nodes are repor
 
 Inside the maintenance window, with writers stopped:
 
-1. Enable keeper in the environment's CHI values (corp PR #24 already does this):
+1. Enable keeper coordination via the Helmfile state value, and supply the node list in
+   `clickhouse.yaml`. Do **not** set `keeper.enabled` in `clickhouse.yaml` — the Helmfile
+   injects it from `clickhouse_keeper.enabled` as the last values layer, so a value set there
+   is ignored (corp PR #24 already configures both):
 
    ```yaml
-   # environments/<env>/clickhouse.yaml
+   # environments/<env>/values.yaml  — the gate the Helmfile reads
+   clickhouse_keeper:
+     enabled: true        # deploys the keeper release AND arms the CHI zookeeper block
+   ```
+
+   ```yaml
+   # environments/<env>/clickhouse.yaml  — only the node list belongs here
    keeper:
-     enabled: true
      nodes:
        - host: clickhouse-keeper-0.clickhouse-keeper-headless.clickhouse.svc
          port: 9181
@@ -108,21 +150,40 @@ Inside the maintenance window, with writers stopped:
 
 ## 3. Rebuild replication metadata in the new keeper
 
-For every replicated table, recreate its keeper-side metadata from the local parts. Run
-`SYSTEM RESTORE REPLICA` on **one replica per shard first**, then restart the others so they
-re-attach to the now-populated path.
+For every replicated table, recreate its keeper-side metadata from the local parts. On a
+fresh/empty keeper **every replica's own znode** (`/clickhouse/tables/<path>/replicas/<name>`)
+is gone, so `SYSTEM RESTORE REPLICA` must run on **every replica of every shard** — it is
+**not** a one-per-shard operation. `SYSTEM RESTART REPLICA` alone on the other replicas does
+**not** help here: it only re-reads *existing* keeper state, and an empty keeper has none, so
+those replicas stay read-only.
 
 ```sql
--- On the first replica of each shard:
-SYSTEM RESTORE REPLICA <db>.<table>;
-
--- On the remaining replicas of that shard:
-SYSTEM RESTART REPLICA <db>.<table>;
+-- Preferred at scale: fan the restore out to all replicas in one statement, per table.
+SET distributed_ddl_task_timeout = 300;          -- many tables/replicas need a longer DDL timeout
+SYSTEM RESTORE REPLICA <db>.<table> ON CLUSTER '<cluster>';
 ```
 
-`SYSTEM RESTORE REPLICA` rebuilds the keeper path from the data already on disk, so no data is
-lost as long as the local parts are intact. Macros (`{shard}`, `{replica}`) and table DDL must
-be unchanged so the recreated paths match the originals.
+If you cannot use `ON CLUSTER`, run it on **each** replica individually:
+
+```sql
+-- Run on every replica that owns the table (every shard, every replica):
+SYSTEM RESTORE REPLICA <db>.<table>;
+```
+
+`SYSTEM RESTORE REPLICA` rebuilds the keeper path from the data already on disk (parts are
+re-registered, not re-fetched), so no data is lost as long as the local parts are intact. It
+works only while the table is read-only (the state it is already in after the repoint). Macros
+(`{shard}`, `{replica}`) and table DDL must be unchanged so the recreated paths match the
+originals.
+
+> If `RESTORE REPLICA` fails because a stale `/replicas/<name>` znode already exists (a re-run,
+> or RESTORE already succeeded for that replica), clear the keeper-side entry first, then retry.
+> This removes only metadata, not local data:
+>
+> ```sql
+> -- Run from a DIFFERENT replica (DROP REPLICA cannot drop the local one), or use FROM ZKPATH:
+> SYSTEM DROP REPLICA '<stale_replica_name>' FROM TABLE <db>.<table>;
+> ```
 
 > Tip: generate the statements in bulk from `system.replicas` rather than typing each table.
 
@@ -142,7 +203,16 @@ SELECT count() FROM <db>.<table>;                 -- on replica B (after a momen
 
 - `system.replicas`: `is_readonly = 0`, `zookeeper_exception = ''` for all tables.
 - A test row written on one replica appears on the other shard replica.
-- `system.zookeeper` query against `/clickhouse` returns the rebuilt tree.
+- `system.zookeeper` shows the rebuilt tree. It **requires** an explicit `path` predicate
+  (a bare `SELECT * FROM system.zookeeper` errors):
+
+  ```sql
+  -- Direct children of the keeper root; expect a 'tables' child after RESTORE:
+  SELECT name, numChildren FROM system.zookeeper WHERE path = '/clickhouse' ORDER BY name;
+  -- Confirm a given table's replicas all re-registered:
+  SELECT name FROM system.zookeeper
+  WHERE path = '/clickhouse/tables/<shard>/<db>/<table>/replicas' ORDER BY name;
+  ```
 
 Only after this passes, **resume ingestion** (re-enable metadata-collector / ch-uploader).
 
@@ -151,13 +221,21 @@ Only after this passes, **resume ingestion** (re-enable metadata-collector / ch-
 ## 5. Decommission the old keeper
 
 Once replication is confirmed healthy on the new keeper, remove the manually-applied keeper so
-nothing drifts back to it:
+nothing drifts back to it.
+
+The old keeper was applied by hand and is **not tracked in this repo**, so the names below are
+illustrative. Discover the real objects first and substitute them:
 
 ```sh
-# In the monitoring namespace (old, kubectl-applied resources):
+# Identify the old (kubectl-applied) keeper resources in the monitoring namespace:
+kubectl -n monitoring get sts,cm,svc,pvc | grep -i keeper
+
+# Delete by the names you found (example names shown). Delete the PVC by name — a hand-applied
+# StatefulSet PVC (vct `data` + STS `keeper` => `data-keeper-0`) may carry no labels, so a
+# `-l` selector can silently match nothing.
 kubectl -n monitoring delete statefulset keeper
 kubectl -n monitoring delete configmap keeper-config
-kubectl -n monitoring delete pvc -l <old-keeper-selector>   # frees the 10Gi PVC
+kubectl -n monitoring delete pvc data-keeper-0      # frees the 10Gi PVC
 ```
 
 Confirm no remaining reference to `clickhouse-keeper.monitoring.svc:2181` exists in any CHI or
@@ -170,9 +248,21 @@ values file before deleting the PVC (the PVC is the only rollback anchor — see
 The cutover is reversible **as long as the old keeper and its PVC still exist**, because the
 old keeper retains the original replication metadata:
 
-1. Revert the CHI values to the old keeper:
-   `zookeeper.nodes: [{host: clickhouse-keeper.monitoring.svc.cluster.local, port: 2181}]`
-   (or `keeper.enabled: false` if reverting to the pre-keeper state is intended).
+1. Point ClickHouse back at the old keeper by editing `keeper.nodes` (the chart renders the
+   CHI's `zookeeper.nodes` from this — there is no `zookeeper.nodes` chart input), keeping the
+   keeper enabled via `clickhouse_keeper.enabled=true`:
+
+   ```yaml
+   # environments/<env>/clickhouse.yaml
+   keeper:
+     nodes:
+       - host: clickhouse-keeper.monitoring.svc.cluster.local
+         port: 2181
+   ```
+
+   For a `replicasCount > 1` cluster, do **not** set `clickhouse_keeper.enabled=false` to roll
+   back — the CHI preflight fails the render when replicas need coordination but keeper is off.
+   Disabling keeper is only valid when reverting the whole cluster to single-replica.
 2. `helmfile -e <env> -l name=clickhouse apply` and wait for the ClickHouse roll.
 3. The tables reattach to the original keeper paths — no `RESTORE REPLICA` needed.
 
