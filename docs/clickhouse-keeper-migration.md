@@ -21,6 +21,11 @@ It is written for a live cluster where:
 > `Replicated*` tables **read-only** until that metadata is rebuilt. Schedule a maintenance
 > window and stop writers first.
 
+![Migration flow across the six phases: ClickHouse coordinates with the old keeper (:2181)
+until cutover, then flips to the new keeper (:9181); the new keeper's metadata is rebuilt from
+on-disk parts via SYSTEM RESTORE REPLICA, and the old keeper is kept untouched as the rollback
+anchor until decommission.](img/keeper-migration-flow.png)
+
 ---
 
 ## 0. Prerequisites
