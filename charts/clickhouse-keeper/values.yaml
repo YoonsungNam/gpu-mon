@@ -43,9 +43,10 @@ affinity: {}
 # budget stays consumed, and `kubectl drain` blocks indefinitely. Use
 # node-independent (network) storage, or keep a spare schedulable node.
 # NOTE: on a single-node cluster a PDB cannot protect anything (node loss takes
-# all replicas anyway) and only wedges `kubectl drain` of that node after the
-# first eviction. Set enabled: false there (see environments/homelab/keeper.yaml)
-# or drain with --disable-eviction.
+# all replicas anyway) and only wedges `kubectl drain` of that node (immediately
+# when the derived budget is 0, or after the first eviction otherwise). Set
+# enabled: false there (see environments/homelab/keeper.yaml) or drain with
+# --disable-eviction.
 podDisruptionBudget:
   enabled: true
   maxUnavailable: null
