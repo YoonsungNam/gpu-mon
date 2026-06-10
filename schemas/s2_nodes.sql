@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS gpu_monitoring.s2_nodes ON CLUSTER '{cluster}'
     op_status     LowCardinality(String),
     link_status   LowCardinality(String),
     num_jobs      UInt16,
-    cores_avail   UInt32,
+    cores_avail   UInt32,                 -- S2 core accounting: on GPU grids 1 GPU card = 1 core
     cores_used    UInt32,
     mem_avail_gb  Float32,
     mem_total_gb  Float32,

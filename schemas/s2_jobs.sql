@@ -12,9 +12,9 @@ CREATE TABLE IF NOT EXISTS gpu_monitoring.s2_jobs ON CLUSTER '{cluster}'
     user            String,
     status          LowCardinality(String),   -- Running, Queued, Done, Failed, Stopped
     project         LowCardinality(String),
-    gpu_per_node    UInt16,
+    gpu_per_node    UInt16,                   -- from phd @cores@ (S2 accounts 1 GPU card = 1 core)
     num_nodes       UInt16,
-    total_gpus      UInt32,
+    total_gpus      UInt32,                   -- gpu_per_node * num_nodes
     submit_time     Nullable(DateTime64(3)),
     start_time      Nullable(DateTime64(3)),
     end_time        Nullable(DateTime64(3)),

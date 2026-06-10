@@ -276,6 +276,10 @@ def _parse_phd_host(raw: str) -> List[Dict[str, Any]]:
     return nodes
 
 
+# Note @cores@: S2 treats GPUs as first-class assets and accounts one GPU
+# card as one core, so on GPU grids @cores@ is the per-node GPU count (the
+# token name is historical, from CPU scheduling). Confirmed by the S2
+# operators; this is why it maps to gpu_per_node below.
 _LIST_FORMAT = (
     "@id@ @user@ @status@ @project@ @cores@ @dp_num_cnodes@ "
     "@submit_time@ @start_time@ @end_time@ "
