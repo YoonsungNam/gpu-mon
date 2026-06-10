@@ -17,6 +17,10 @@ spec:
       annotations:
         checksum/config: {{ include "metadata-collector.config" . | sha256sum }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: metadata-collector
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -27,8 +31,19 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/metadata-collector
-          {{- if or .Values.existingSecrets.s2ApiToken .Values.existingSecrets.vcenterCredentials }}
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           env:
+            - name: MC_CONFIG_PATH
+              value: /etc/metadata-collector/config.yaml
+            {{- if .Values.existingSecrets.clickhousePassword }}
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.existingSecrets.clickhousePassword }}
+                  key: password
+            {{- end }}
             {{- if .Values.existingSecrets.s2ApiToken }}
             - name: S2_API_TOKEN
               valueFrom:
@@ -48,9 +63,9 @@ spec:
                   name: {{ .Values.existingSecrets.vcenterCredentials }}
                   key: password
             {{- end }}
-          {{- else }}
-          env: []
-          {{- end }}
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /health
@@ -63,3 +78,6 @@ spec:
         - name: config
           configMap:
             name: {{ include "metadata-collector.fullname" . }}-config
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

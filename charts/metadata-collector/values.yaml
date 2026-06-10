@@ -2,10 +2,14 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/yoonsungnam/gpu-mon/metadata-collector
-  tag: "latest"
-  pullPolicy: IfNotPresent
+  # tag is injected from versions.yaml by helmfile; override here if needed.
+  tag: "main"
+  pullPolicy: Always
 
-# Configuration is mounted from a ConfigMap + Secrets
+# Image pull secrets for private registries (set per-environment if needed).
+imagePullSecrets: []
+
+# Rendered into a ConfigMap and mounted at /etc/metadata-collector/config.yaml.
 config:
   logLevel: info
   healthPort: 8080
@@ -19,19 +23,33 @@ config:
     flushInterval: "10s"
 
   sources:
+    # S2 batch scheduler integration. Real connection values live in the
+    # private corp overlay (environments/corp/metadata-collector.yaml).
     s2:
       enabled: false
-      # Set via Secret: s2-api-token
-      # apiUrl: "http://s2-master.internal:8080/api/v1"
+      bmiUrl: ""                       # BMI REST API base URL
+      httpProxyAddr: ""                # HTTP(S) proxy for BMI calls (optional)
+      phdBinTemplate: ""               # phd binary path; {grid_name} is substituted
+      ssh:
+        jumpHost: ""                   # SSH jump/bastion host
+        loginHost: ""                  # login host where phd runs
+        user: ""                       # SSH user (optional)
+        keyPath: /root/.ssh/id_rsa
+      targetGrids: []                  # grid names to collect; empty = all discovered
+      intervals:
+        gridDiscovery: 3600
+        nodes: 600
+        jobsActive: 300
+        jobsCompleted: 600
+    # VMware vCenter integration
     vmware:
       enabled: false
-      # Set via Secret: vcenter-credentials
-      # vcenterUrl: "https://vcenter.internal.example.com"
 
-# Existing secret names (created separately, not by this chart)
+# Existing K8s secret names (created separately, not by this chart).
 existingSecrets:
-  s2ApiToken: ""         # Key: token
-  vcenterCredentials: "" # Keys: username, password
+  clickhousePassword: ""   # secret with key: password  -> CLICKHOUSE_PASSWORD
+  s2ApiToken: ""           # secret with key: token
+  vcenterCredentials: ""   # secret with keys: username, password
 
 service:
   type: ClusterIP
@@ -44,3 +62,7 @@ resources:
   limits:
     cpu: 500m
     memory: 256Mi
+
+# Extra volume mounts / volumes (e.g. an SSH key for S2). Set per-environment.
+volumeMounts: []
+volumes: []

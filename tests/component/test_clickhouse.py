@@ -38,17 +38,20 @@ TABLE_COLUMNS = {
     },
     "s2_jobs": {
         "collected_at": "DateTime",
-        "job_id": "String",
-        "user_id": "String",
+        "grid_name": "String",
+        "job_id": "UInt64",
+        "user": "String",
         "status": "String",
-        "node_list": "Array",
-        "gpu_indices": "Array",
+        "submit_ts": "Float64",
+        "resources": "Array",
+        "gpu_allocations": "String",
     },
     "s2_nodes": {
-        "node_id": "String",
-        "status": "String",
-        "gpu_total": "UInt",
-        "gpu_allocated": "UInt",
+        "grid_name": "String",
+        "hostname": "String",
+        "op_status": "String",
+        "cores_avail": "UInt",
+        "cores_used": "UInt",
     },
     "vmware_vm_inventory": {
         "vm_uuid": "String",
@@ -168,10 +171,12 @@ def test_insert_and_select_s2_jobs():
         params={
             "query": (
                 "INSERT INTO gpu_monitoring.s2_jobs "
-                "(collected_at, job_id, job_name, user_id, team, queue, status, "
-                " node_list, gpu_count, gpu_indices, cpu_count, memory_mb, metadata) "
-                "VALUES (now(), 'test-job-1', 'test-job', 'test-user', 'test-team', "
-                "        'default', 'running', ['node-1'], 2, [0, 1], 8, 16384, '{}')"
+                "(collected_at, grid_name, job_id, user, status, project, "
+                " gpu_per_node, num_nodes, total_gpus, submit_ts, resources, "
+                " gpu_indices_raw, gpu_allocations, properties_json, raw_json) "
+                "VALUES (now(), 'test-grid', 990001, 'test-user', 'Running', "
+                "        'test-project', 4, 2, 8, 1700000000.0, ['gpu'], "
+                "        'node-1[0,1]', '[]', '{}', '{}')"
             )
         },
         timeout=5,
@@ -180,7 +185,7 @@ def test_insert_and_select_s2_jobs():
     r = requests.post(
         CLICKHOUSE_URL,
         params={
-            "query": "SELECT count() FROM gpu_monitoring.s2_jobs WHERE job_id='test-job-1'"
+            "query": "SELECT count() FROM gpu_monitoring.s2_jobs WHERE job_id=990001"
         },
         timeout=5,
     )

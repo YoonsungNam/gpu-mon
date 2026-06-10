@@ -1,0 +1,42 @@
+# Local development example config.
+# In Kubernetes this file is replaced by the chart-rendered ConfigMap,
+# mounted at /etc/metadata-collector/config.yaml (via the MC_CONFIG_PATH env var).
+# Real environment values live in the private corp overlay, not here.
+collector:
+  log_level: info
+  health_port: 8080
+
+clickhouse:
+  endpoints:
+    - "clickhouse-gpu-monitoring.clickhouse.svc:9000"
+  database: gpu_monitoring
+  username: metadata_writer
+  # password: set via CLICKHOUSE_PASSWORD env var
+  batch_size: 500
+  flush_interval: 10s
+
+sources:
+  s2:
+    enabled: false
+    bmi_url: "http://s2-bmi.example.internal:8080"
+    http_proxy_addr: "http://proxy.example.internal:3128"
+    phd_bin_template: "/opt/s2/installed/{grid_name}/current/bin/phd"
+
+    ssh:
+      jump_host: "jump.example.internal"
+      login_host: "login.example.internal"
+      # user: svcuser
+      key_path: /root/.ssh/id_rsa
+
+    target_grids:
+      - example-grid
+
+    # Collection intervals (seconds)
+    intervals:
+      grid_discovery: 3600    # grid/portal discovery (60 min)
+      nodes: 600              # phd host (10 min)
+      jobs_active: 300        # Running + Queued, full snapshot (5 min)
+      jobs_completed: 600     # Done + Failed + Stopped, incremental (10 min)
+
+  vmware:
+    enabled: false

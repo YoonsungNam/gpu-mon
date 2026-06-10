@@ -1,6 +1,7 @@
 FROM python:3.12-alpine
 
-RUN apk add --no-cache gcc musl-dev libffi-dev openssl-dev
+# Build + runtime packages (openssh-client is required for the S2 ssh ProxyCommand).
+RUN apk add --no-cache gcc musl-dev libffi-dev openssl-dev openssh-client
 
 WORKDIR /app
 COPY requirements.txt .

@@ -1,19 +1,17 @@
 """
 Metadata Collector
 
-Polls legacy system APIs (Samsung S2 batch scheduler, VMware vCenter)
+Polls batch-scheduler / hypervisor APIs (S2 batch scheduler, VMware vCenter)
 on configurable schedules and batch-inserts metadata into ClickHouse.
 
-Enables GPU metric enrichment: GPU Util + Job context at query time.
-
-Config: /etc/metadata-collector/config.yaml
-        or MC_CONFIG_PATH env var
+Config: /etc/metadata-collector/config.yaml  or  MC_CONFIG_PATH env var
 """
 
 import logging
 import os
 import signal
 import sys
+from pathlib import Path
 
 import yaml
 from adapters.s2_adapter import S2Adapter
@@ -31,8 +29,10 @@ def load_config(path: str) -> dict:
 
 
 def main():
+    base_dir = Path(__file__).resolve().parent
     config_path = os.environ.get(
-        "MC_CONFIG_PATH", "/etc/metadata-collector/config.yaml"
+        "MC_CONFIG_PATH",
+        str(base_dir / "config.yaml")
     )
 
     try:
@@ -64,17 +64,53 @@ def main():
     # ── S2 Adapter ───────────────────────────────────────────────────────
     s2_cfg = sources.get("s2", {})
     if s2_cfg.get("enabled", False):
+        ssh_cfg = s2_cfg.get("ssh", {})
         s2 = S2Adapter(
-            api_url=s2_cfg.get("api_url", ""),
-            api_token=os.environ.get("S2_API_TOKEN", ""),
+            bmi_url=s2_cfg.get("bmi_url", ""),
+            phd_bin_template=s2_cfg.get(
+                "phd_bin_template",
+                "/opt/s2/installed/{grid_name}/current/bin/phd",
+            ),
+            http_proxy_addr=s2_cfg.get("http_proxy_addr", ""),
+            ssh_jump_host=ssh_cfg.get("jump_host", ""),
+            ssh_login_host=ssh_cfg.get("login_host", ""),
             writer=writer,
+            ssh_user=ssh_cfg.get("user"),
+            ssh_key_path=ssh_cfg.get("key_path"),
+            target_grids=s2_cfg.get("target_grids"),
         )
-        scheduler.add(s2.collect_jobs_running,    interval_secs=60,  name="s2-jobs-running")
-        scheduler.add(s2.collect_jobs_completed,  interval_secs=300, name="s2-jobs-completed")
-        scheduler.add(s2.collect_nodes,           interval_secs=120, name="s2-nodes")
-        scheduler.add(s2.collect_projects,        interval_secs=600, name="s2-projects")
-        scheduler.add(s2.collect_pools,           interval_secs=600, name="s2-pools")
-        logger.info("S2 adapter enabled: %s", s2_cfg.get("api_url"))
+
+        intervals = s2_cfg.get("intervals", {})
+
+        # grid discovery — every 60 min
+        scheduler.add(
+            s2.refresh_grids,
+            interval_secs=intervals.get("grid_discovery", 3600),
+            name="s2-grid-discovery",
+        )
+        # node info — every 10 min
+        scheduler.add(
+            s2.collect_nodes,
+            interval_secs=intervals.get("nodes", 600),
+            name="s2-nodes",
+        )
+        # Running + Queued jobs — every 5 min
+        scheduler.add(
+            s2.collect_jobs_active,
+            interval_secs=intervals.get("jobs_active", 300),
+            name="s2-jobs-active",
+        )
+        # Done + Failed + Stopped jobs — every 10 min (incremental)
+        scheduler.add(
+            s2.collect_jobs_completed,
+            interval_secs=intervals.get("jobs_completed", 600),
+            name="s2-jobs-completed",
+        )
+
+        logger.info(
+            "S2 adapter enabled: bmi=%s, login=%s",
+            s2_cfg.get("bmi_url"), ssh_cfg.get("login_host"),
+        )
 
     # ── VMware Adapter ───────────────────────────────────────────────────
     vmw_cfg = sources.get("vmware", {})
