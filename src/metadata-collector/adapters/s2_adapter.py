@@ -17,8 +17,8 @@ Job collection strategy
   On pod restart, the last end_time is recovered from ClickHouse.
 
 ClickHouse target tables:
-  - s2_nodes  (Distributed → ReplicatedMergeTree)
-  - s2_jobs   (Distributed → ReplicatedReplacingMergeTree)
+  - s2_nodes  (ReplacingMergeTree)
+  - s2_jobs   (ReplacingMergeTree)
 """
 
 import ast
@@ -142,6 +142,10 @@ class _BMIClient:
 #  SSH PHD runner
 # ═══════════════════════════════════════════════════════════════════════
 
+class PhdCommandError(RuntimeError):
+    """The remote phd command could not be executed or exited non-zero."""
+
+
 class _SSHPHDRunner:
     def __init__(
         self,
@@ -195,6 +199,14 @@ class _SSHPHDRunner:
         return cmd
 
     def run(self, args: List[str], grid_name: str) -> str:
+        """Run phd remotely and return its stdout.
+
+        Raises PhdCommandError on any execution failure (non-zero exit,
+        timeout, missing ssh binary) so callers can tell "phd failed" apart
+        from "phd succeeded with no matching jobs" (empty stdout). Returning
+        an empty string on failure would make vanished-job detection treat
+        every active job as gone.
+        """
         phd_bin = self._phd_template.format(grid_name=grid_name)
         remote_parts = [phd_bin] + args
         remote_cmd = " ".join(shlex.quote(p) for p in remote_parts)
@@ -205,19 +217,25 @@ class _SSHPHDRunner:
             result = subprocess.run(
                 ssh_cmd, capture_output=True, text=True, timeout=120,
             )
-            if result.returncode != 0:
-                logger.error(
-                    "ssh+phd failed (rc=%d, host=%s): %s",
-                    result.returncode, self._login_host, result.stderr.strip(),
-                )
-                return ""
-            return result.stdout
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
             logger.error("ssh+phd timeout (host=%s)", self._login_host)
-            return ""
-        except FileNotFoundError:
+            raise PhdCommandError(
+                f"ssh+phd timeout (host={self._login_host})"
+            ) from e
+        except FileNotFoundError as e:
             logger.error("ssh binary not found in PATH")
-            return ""
+            raise PhdCommandError("ssh binary not found in PATH") from e
+
+        if result.returncode != 0:
+            logger.error(
+                "ssh+phd failed (rc=%d, host=%s): %s",
+                result.returncode, self._login_host, result.stderr.strip(),
+            )
+            raise PhdCommandError(
+                f"ssh+phd failed (rc={result.returncode}, "
+                f"host={self._login_host}): {result.stderr.strip()}"
+            )
+        return result.stdout
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -393,8 +411,8 @@ class S2Adapter:
 
     Collection strategy
     -------------------
-    - ``collect_jobs_active()``: full collection of Running + Queued  (every 1 min)
-    - ``collect_jobs_completed()``: Done/Failed/Stopped **end_time window** collection  (every 5 min)
+    - ``collect_jobs_active()``: full collection of Running + Queued  (default every 5 min)
+    - ``collect_jobs_completed()``: Done/Failed/Stopped **end_time window** collection  (default every 10 min)
       - ``end_time > (last_end_ts - overlap)`` collects only recently finished jobs
       - overlap (10 min) prevents boundary gaps; duplicates are removed by ReplacingMergeTree
       - last_end_ts is recovered from ClickHouse on pod restart
@@ -444,9 +462,12 @@ class S2Adapter:
                 if g not in all_grids:
                     logger.warning("target grid '%s' not in BMI — skipped", g)
                     continue
+                # The portal spec is informational; a grid without portal
+                # pnodes must still be collected.
                 spec = self._bmi.get_portal_spec(g)
-                if spec:
-                    new_map[g] = spec
+                if not spec:
+                    logger.warning("grid '%s' has no portal pnodes", g)
+                new_map[g] = spec
             self._grid_map = new_map
             logger.info("grid map refreshed: %s", self._grid_map)
         except Exception as e:
@@ -474,7 +495,7 @@ class S2Adapter:
             f"AND end_time IS NOT NULL"
         )
         try:
-            result = self.writer._client.execute(query, {"grid": grid_name})
+            result = self.writer.query(query, {"grid": grid_name})
             val = result[0][0] if result and result[0] else 0
             ts = float(val) if val else 0.0
             if ts > 0:
@@ -534,7 +555,7 @@ class S2Adapter:
 
         After collection, look up in ClickHouse the jobs that were previously
         Running/Queued but no longer appear in this collection, and close them
-        as Done.
+        (Running → Done, Queued → Stopped).
         (Handles the case where a job went Running → Done → purge and the
         collection opportunity was missed.)
         """
@@ -564,15 +585,20 @@ class S2Adapter:
                     )
                     collection_ok = False
 
-            # If any phd call failed, do not perform vanished detection
-            # (prevents all jobs from being closed as Done due to a network issue)
+            # If any phd call failed (PhdCommandError or otherwise), do not
+            # perform vanished detection — with a partial/empty active set a
+            # network issue would close every active job.
             if collection_ok:
                 self._close_vanished_jobs(grid_name, active_job_keys)
 
     # ── Close vanished jobs ──────────────────────────────────────────────
 
     def _close_vanished_jobs(self, grid_name: str, active_job_keys: set):
-        """Close as Done the jobs that are Running/Queued in CH but no longer present in phd.
+        """Close the jobs that are Running/Queued in CH but no longer present in phd.
+
+        A vanished Running job finished → Done. A vanished Queued job never
+        ran (cancelled/removed) → Stopped, so completion metrics are not
+        inflated.
 
         Parameters
         ----------
@@ -585,12 +611,12 @@ class S2Adapter:
                 "SELECT job_id, user, project, gpu_per_node, num_nodes, "
                 "       total_gpus, submit_time, start_time, submit_ts, "
                 "       resources, gpu_indices_raw, gpu_allocations, "
-                "       properties_json "
+                "       properties_json, status "
                 "FROM s2_jobs FINAL "
                 "WHERE grid_name = %(grid)s "
                 "  AND status IN ('Running', 'Queued')"
             )
-            ch_rows = self.writer._client.execute(query, {"grid": grid_name})
+            ch_rows = self.writer.query(query, {"grid": grid_name})
         except Exception as e:
             logger.warning("_close_vanished_jobs CH query failed (grid=%s): %s", grid_name, e)
             return
@@ -607,12 +633,13 @@ class S2Adapter:
             key = (job_id, submit_ts)
 
             if key not in active_job_keys:
+                prior_status = row[13]
                 closed_rows.append({
                     "collected_at":     now,
                     "grid_name":        grid_name,
                     "job_id":           job_id,
                     "user":             row[1] or "",
-                    "status":           "Done",
+                    "status":           "Done" if prior_status == "Running" else "Stopped",
                     "project":          row[2] or "",
                     "gpu_per_node":     row[3] or 0,
                     "num_nodes":        row[4] or 0,
@@ -625,13 +652,16 @@ class S2Adapter:
                     "gpu_indices_raw":  row[10] or "",
                     "gpu_allocations":  row[11] or "[]",
                     "properties_json":  row[12] or "{}",
-                    "raw_json":         json.dumps({"_closed_by": "vanished_detection"}),
+                    "raw_json":         json.dumps({
+                        "_closed_by": "vanished_detection",
+                        "prior_status": prior_status,
+                    }),
                 })
 
         if closed_rows:
             self.writer.insert("s2_jobs", closed_rows)
             logger.info(
-                "Closed %d vanished jobs as Done: grid=%s, job_ids=%s",
+                "Closed %d vanished jobs: grid=%s, job_ids=%s",
                 len(closed_rows), grid_name,
                 [r["job_id"] for r in closed_rows[:10]],
             )
@@ -676,7 +706,12 @@ class S2Adapter:
                 rows = [_normalize_job(grid_name, j) for j in parsed]
                 if rows:
                     self.writer.insert("s2_jobs", rows)
-                    self._update_last_end_ts(grid_name, parsed)
+                    # Advance the watermark only once the rows are persisted:
+                    # buffered rows are invisible to _recover_last_end_ts, so
+                    # a crash would otherwise skip them on restart. On flush
+                    # failure the window simply re-covers them next cycle.
+                    if self.writer.flush():
+                        self._update_last_end_ts(grid_name, parsed)
                 logger.debug(
                     "s2 jobs [Completed]: grid=%s, rows=%d (end_time > %.1f)",
                     grid_name, len(rows), window_ts,

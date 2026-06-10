@@ -54,20 +54,37 @@ class ClickHouseWriter:
             if len(buf) >= self._batch_size:
                 self._flush_table(table)
 
-    def flush(self):
+    def flush(self) -> bool:
+        """Flush all buffers. Returns True only if every table flushed."""
+        with self._lock:
+            ok = True
+            for table in list(self._buffers.keys()):
+                ok = self._flush_table(table) and ok
+            return ok
+
+    def query(self, sql: str, params: dict = None):
+        """Run a read query, serialized with writes on the shared client.
+
+        clickhouse_driver.Client wraps a single socket and is not thread-safe,
+        so every read must hold the same lock as insert/flush. Buffered rows
+        are flushed first (best-effort) so read-back logic sees its own writes.
+        """
         with self._lock:
             for table in list(self._buffers.keys()):
                 self._flush_table(table)
+            return self._client.execute(sql, params)
 
-    def _flush_table(self, table: str):
-        """Must be called with self._lock held."""
+    def _flush_table(self, table: str) -> bool:
+        """Must be called with self._lock held. Returns True on success."""
         rows = self._buffers.pop(table, [])
         if not rows:
-            return
+            return True
         try:
             self._client.execute(f"INSERT INTO {table} VALUES", rows)
             logger.debug("Flushed %d rows to %s", len(rows), table)
+            return True
         except Exception as e:
             logger.error("Failed to flush %d rows to %s: %s", len(rows), table, e)
             # Re-buffer on failure to avoid data loss
             self._buffers.setdefault(table, []).extend(rows)
+            return False

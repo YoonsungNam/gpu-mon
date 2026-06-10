@@ -78,7 +78,7 @@ def test_insert_multiple_batches(writer):
 @pytest.mark.unit
 def test_flush_sends_pending_rows(writer):
     writer.insert("s2_jobs", [{"job_id": "1"}])
-    writer.flush()
+    assert writer.flush() is True
     writer._client.execute.assert_called_once()
     # Buffer should be empty after flush
     assert writer._buffers.get("s2_jobs", []) == []
@@ -125,7 +125,7 @@ def test_flush_failure_rebuffers_rows(writer):
     writer._client.execute.side_effect = Exception("connection lost")
 
     writer.insert("s2_jobs", [{"job_id": "x"}])
-    writer.flush()
+    assert writer.flush() is False
 
     # Row should be back in buffer
     assert len(writer._buffers.get("s2_jobs", [])) == 1
@@ -139,3 +139,28 @@ def test_insert_table_name_in_execute_call(writer):
 
     call_args = writer._client.execute.call_args[0]
     assert "s2_jobs" in call_args[0]
+
+
+# ─── query() ─────────────────────────────────────────────────────────────────
+
+@pytest.mark.unit
+def test_query_runs_on_shared_client(writer):
+    writer._client.execute.return_value = [[42]]
+    result = writer.query("SELECT 42", {"k": "v"})
+    assert result == [[42]]
+    writer._client.execute.assert_called_once_with("SELECT 42", {"k": "v"})
+
+
+@pytest.mark.unit
+def test_query_flushes_buffered_rows_first(writer):
+    """Read-back logic must see its own buffered writes."""
+    writer.insert("s2_jobs", [{"job_id": "1"}])
+
+    writer.query("SELECT count() FROM s2_jobs", None)
+
+    # first call is the buffered INSERT, second is the SELECT
+    calls = [c[0][0] for c in writer._client.execute.call_args_list]
+    assert len(calls) == 2
+    assert "INSERT INTO s2_jobs" in calls[0]
+    assert calls[1] == "SELECT count() FROM s2_jobs"
+    assert writer._buffers.get("s2_jobs", []) == []

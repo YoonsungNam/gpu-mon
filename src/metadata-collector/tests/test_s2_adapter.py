@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from adapters.s2_adapter import (  # noqa: E402
     _LIST_FORMAT,
+    PhdCommandError,
     S2Adapter,
     _BMIClient,
     _float,
@@ -456,7 +457,7 @@ def test_ssh_phd_runner_returns_stdout():
 
 
 @pytest.mark.unit
-def test_ssh_phd_runner_nonzero_returns_empty():
+def test_ssh_phd_runner_nonzero_raises():
     runner = _SSHPHDRunner(
         phd_bin_template="phd",
         jump_host="jump.test",
@@ -464,11 +465,12 @@ def test_ssh_phd_runner_nonzero_returns_empty():
     )
     completed = MagicMock(returncode=1, stdout="partial", stderr="boom")
     with patch("adapters.s2_adapter.subprocess.run", return_value=completed):
-        assert runner.run(["host"], "grid-a") == ""
+        with pytest.raises(PhdCommandError, match="rc=1"):
+            runner.run(["host"], "grid-a")
 
 
 @pytest.mark.unit
-def test_ssh_phd_runner_timeout_returns_empty():
+def test_ssh_phd_runner_timeout_raises():
     import subprocess as _sp
 
     runner = _SSHPHDRunner(
@@ -480,7 +482,8 @@ def test_ssh_phd_runner_timeout_returns_empty():
         "adapters.s2_adapter.subprocess.run",
         side_effect=_sp.TimeoutExpired(cmd="ssh", timeout=120),
     ):
-        assert runner.run(["host"], "grid-a") == ""
+        with pytest.raises(PhdCommandError, match="timeout"):
+            runner.run(["host"], "grid-a")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -491,9 +494,8 @@ def test_ssh_phd_runner_timeout_returns_empty():
 def mock_writer():
     w = MagicMock()
     w.insert = MagicMock()
-    # writer._client.execute used for CH recovery / vanished detection
-    w._client = MagicMock()
-    w._client.execute = MagicMock(return_value=[])
+    # writer.query used for CH recovery / vanished detection
+    w.query = MagicMock(return_value=[])
     return w
 
 
@@ -541,6 +543,17 @@ def test_refresh_grids_skips_target_not_in_bmi(adapter):
 
     assert adapter._grid_map == {}
     adapter._bmi.get_portal_spec.assert_not_called()
+
+
+@pytest.mark.unit
+def test_refresh_grids_keeps_grid_without_portal_spec(adapter):
+    # A grid with no portal pnodes must still be collected
+    adapter._bmi.get_grids.return_value = ["grid-a"]
+    adapter._bmi.get_portal_spec.return_value = ""
+
+    adapter.refresh_grids()
+
+    assert "grid-a" in adapter._grid_map
 
 
 @pytest.mark.unit
@@ -642,11 +655,11 @@ def test_collect_jobs_active_runs_vanished_detection_when_ok(adapter, mock_write
     adapter._grid_map = {"grid-a": "6789@login01"}
     adapter._phd.run.return_value = _job_line(job_id=1, status="Running", end_ts=0)
     # CH has no Running/Queued rows → nothing to close, but query IS executed
-    mock_writer._client.execute.return_value = []
+    mock_writer.query.return_value = []
 
     adapter.collect_jobs_active()
 
-    assert mock_writer._client.execute.called
+    assert mock_writer.query.called
 
 
 @pytest.mark.unit
@@ -657,18 +670,43 @@ def test_collect_jobs_active_skips_vanished_detection_on_failure(adapter, mock_w
 
     adapter.collect_jobs_active()
 
-    mock_writer._client.execute.assert_not_called()
+    mock_writer.query.assert_not_called()
+
+
+@pytest.mark.unit
+def test_collect_jobs_active_ssh_rc_failure_does_not_mass_close(adapter, mock_writer):
+    """Regression: an ssh non-zero exit must NOT look like 'no active jobs'.
+
+    With a real _SSHPHDRunner and ssh exiting rc=1, the run must raise so
+    collection_ok=False — otherwise every Running/Queued job in CH would be
+    closed by vanished detection.
+    """
+    adapter._grid_map = {"grid-a": "6789@login01"}
+    adapter._phd = _SSHPHDRunner(
+        phd_bin_template="/opt/{grid_name}/bin/phd",
+        jump_host="jump.test",
+        login_host="login.test",
+    )
+    # CH holds an active job that would be wrongly closed
+    mock_writer.query.return_value = [_ch_active_row(status="Running")]
+
+    failed = MagicMock(returncode=255, stdout="", stderr="connection refused")
+    with patch("adapters.s2_adapter.subprocess.run", return_value=failed):
+        adapter.collect_jobs_active()
+
+    # no vanished detection ran, nothing was closed
+    mock_writer.query.assert_not_called()
+    mock_writer.insert.assert_not_called()
 
 
 # ═══════════════════════════════════════════════════════════════════════
 #  S2Adapter._close_vanished_jobs
 # ═══════════════════════════════════════════════════════════════════════
 
-@pytest.mark.unit
-def test_close_vanished_jobs_marks_done(adapter, mock_writer):
-    # CH knows job 999 (submit_ts 111.0) as Running; it's NOT in the active set
-    ch_row = [
-        999,                # job_id
+def _ch_active_row(job_id=999, submit_ts=111.0, status="Running"):
+    """A row in the shape returned by the _close_vanished_jobs SELECT."""
+    return [
+        job_id,             # job_id
         "kim",              # user
         "ai-research",      # project
         4,                  # gpu_per_node
@@ -676,13 +714,19 @@ def test_close_vanished_jobs_marks_done(adapter, mock_writer):
         8,                  # total_gpus
         None,               # submit_time
         None,               # start_time
-        111.0,              # submit_ts
+        submit_ts,          # submit_ts
         ["gpu"],            # resources
         "nodeA[0,1]",       # gpu_indices_raw
         "[]",               # gpu_allocations
         "{}",               # properties_json
+        status,             # status
     ]
-    mock_writer._client.execute.return_value = [ch_row]
+
+
+@pytest.mark.unit
+def test_close_vanished_jobs_marks_running_done(adapter, mock_writer):
+    # CH knows job 999 (submit_ts 111.0) as Running; it's NOT in the active set
+    mock_writer.query.return_value = [_ch_active_row(status="Running")]
 
     # active set does NOT contain (999, 111.0) → job is vanished
     adapter._close_vanished_jobs("grid-a", active_job_keys={(1, 222.0)})
@@ -700,12 +744,33 @@ def test_close_vanished_jobs_marks_done(adapter, mock_writer):
 
 
 @pytest.mark.unit
+def test_close_vanished_queued_marked_stopped(adapter, mock_writer):
+    # A vanished Queued job never ran → must NOT be counted as completed
+    mock_writer.query.return_value = [_ch_active_row(status="Queued")]
+
+    adapter._close_vanished_jobs("grid-a", active_job_keys=set())
+
+    table, rows = mock_writer.insert.call_args[0]
+    assert rows[0]["status"] == "Stopped"
+    assert json.loads(rows[0]["raw_json"])["prior_status"] == "Queued"
+
+
+@pytest.mark.unit
+def test_close_vanished_jobs_select_pins_column_order(adapter, mock_writer):
+    """The row indices used to build closed rows depend on this column order."""
+    mock_writer.query.return_value = []
+
+    adapter._close_vanished_jobs("grid-a", active_job_keys=set())
+
+    sql = mock_writer.query.call_args[0][0]
+    cols_part = sql.split("FROM")[0]
+    assert cols_part.startswith("SELECT job_id, user, project, gpu_per_node, num_nodes,")
+    assert cols_part.rstrip().endswith("properties_json, status")
+
+
+@pytest.mark.unit
 def test_close_vanished_jobs_keeps_still_active(adapter, mock_writer):
-    ch_row = [
-        999, "kim", "proj", 1, 1, 1, None, None, 111.0,
-        [], "", "[]", "{}",
-    ]
-    mock_writer._client.execute.return_value = [ch_row]
+    mock_writer.query.return_value = [_ch_active_row(job_id=999, submit_ts=111.0)]
 
     # job (999, 111.0) IS still active → not closed
     adapter._close_vanished_jobs("grid-a", active_job_keys={(999, 111.0)})
@@ -715,14 +780,14 @@ def test_close_vanished_jobs_keeps_still_active(adapter, mock_writer):
 
 @pytest.mark.unit
 def test_close_vanished_jobs_empty_ch_does_nothing(adapter, mock_writer):
-    mock_writer._client.execute.return_value = []
+    mock_writer.query.return_value = []
     adapter._close_vanished_jobs("grid-a", active_job_keys=set())
     mock_writer.insert.assert_not_called()
 
 
 @pytest.mark.unit
 def test_close_vanished_jobs_ch_failure_is_swallowed(adapter, mock_writer):
-    mock_writer._client.execute.side_effect = RuntimeError("CH down")
+    mock_writer.query.side_effect = RuntimeError("CH down")
     # Must not raise, must not insert
     adapter._close_vanished_jobs("grid-a", active_job_keys=set())
     mock_writer.insert.assert_not_called()
@@ -748,8 +813,26 @@ def test_collect_jobs_completed_inserts_and_updates_last_end_ts(adapter, mock_wr
     rows = insert_calls[0][0][1]
     assert rows[0]["job_id"] == 7
     assert rows[0]["status"] == "Done"
+    # rows are persisted before the watermark advances
+    mock_writer.flush.assert_called_once()
     # last_end_ts advanced to the max end_ts of the collected jobs
     assert adapter._last_end_ts["grid-a"] == pytest.approx(_TS_END + 5000)
+
+
+@pytest.mark.unit
+def test_collect_jobs_completed_failed_flush_keeps_watermark(adapter, mock_writer):
+    """If rows could not be persisted, the watermark must not advance —
+    otherwise a crash would permanently skip the buffered jobs."""
+    adapter._grid_map = {"grid-a": "6789@login01"}
+    adapter._last_end_ts = {"grid-a": _TS_END}
+    adapter._phd.run.return_value = _job_line(
+        job_id=7, status="Done", end_ts=_TS_END + 5000,
+    )
+    mock_writer.flush.return_value = False
+
+    adapter.collect_jobs_completed()
+
+    assert adapter._last_end_ts["grid-a"] == pytest.approx(_TS_END)
 
 
 @pytest.mark.unit
@@ -773,15 +856,37 @@ def test_collect_jobs_completed_sel_expr_uses_window(adapter, mock_writer):
 @pytest.mark.unit
 def test_collect_jobs_completed_recovers_last_end_ts_from_ch(adapter, mock_writer):
     adapter._grid_map = {"grid-a": "6789@login01"}
-    # no in-memory ts → _get_last_end_ts queries CH (returns submit_ts max)
-    mock_writer._client.execute.return_value = [[_TS_END]]
+    # no in-memory ts → _get_last_end_ts queries CH (returns max end_time)
+    mock_writer.query.return_value = [[_TS_END]]
     adapter._phd.run.return_value = ""
 
     adapter.collect_jobs_completed()
 
     # CH recovery happened
-    assert mock_writer._client.execute.called
+    assert mock_writer.query.called
     # window derived from recovered ts (not the 7-day fallback)
     args = adapter._phd.run.call_args[0][0]
     sel_expr = args[args.index("-sel") + 1]
     assert str(_TS_END - 600) in sel_expr
+
+
+@pytest.mark.unit
+def test_collect_jobs_completed_initial_lookback_window(adapter, mock_writer):
+    """First collection with failed CH recovery must be bounded to ~7 days.
+
+    An unbounded window (end_time > 0) would scan every completed job ever
+    and OOM the pod.
+    """
+    import time as _time
+
+    adapter._grid_map = {"grid-a": "6789@login01"}
+    # no in-memory ts and CH recovery fails → last_ts = 0.0 → 7-day fallback
+    mock_writer.query.side_effect = RuntimeError("CH down")
+    adapter._phd.run.return_value = ""
+
+    adapter.collect_jobs_completed()
+
+    args = adapter._phd.run.call_args[0][0]
+    sel_expr = args[args.index("-sel") + 1]
+    window_ts = float(sel_expr.split("end_time > ")[1])
+    assert window_ts == pytest.approx(_time.time() - 86400 * 7, abs=120)
