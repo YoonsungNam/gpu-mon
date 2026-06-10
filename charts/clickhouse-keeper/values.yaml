@@ -28,10 +28,24 @@ affinity: {}
 # (node drains, rolling node upgrades). On a small (1-2 node) cluster the soft
 # anti-affinity above packs replicas onto fewer nodes (e.g. 2+1 on two nodes), so
 # without a PDB a single `kubectl drain` can evict two keeper pods at once and
-# break the quorum. maxUnavailable: 1 keeps a 2-of-3 majority during drains.
+# break the quorum.
+# maxUnavailable: null (default) auto-derives the quorum-correct ceil(n/2) - 1
+# from replicaCount (3 -> 1, 5 -> 2, 2 -> 0, 1 -> 0), so changing replicaCount
+# cannot silently leave a budget that permits a quorum-fatal eviction. Set an
+# explicit integer only to override the derived value — and recompute it if you
+# change replicaCount.
 # NOTE: a PDB only blocks *voluntary* evictions — it cannot protect against an
 # *unplanned* loss of the node hosting two pods. True node-failure HA needs a
 # third schedulable node (and ideally hard anti-affinity via `affinity` above).
+# NOTE: the PDB is only drain-safe when an evicted pod can become Ready again
+# elsewhere. With node-bound storage (local-path/hostpath PVs) the RWO data PVC
+# cannot follow the pod to another node: the replacement stays Pending, the
+# budget stays consumed, and `kubectl drain` blocks indefinitely. Use
+# node-independent (network) storage, or keep a spare schedulable node.
+# NOTE: on a single-node cluster a PDB cannot protect anything (node loss takes
+# all replicas anyway) and only wedges `kubectl drain` of that node after the
+# first eviction. Set enabled: false there (see environments/homelab/keeper.yaml)
+# or drain with --disable-eviction.
 podDisruptionBudget:
   enabled: true
-  maxUnavailable: 1
+  maxUnavailable: null

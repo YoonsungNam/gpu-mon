@@ -10,3 +10,10 @@
 replicaCount: 3
 storage:
   size: 5Gi
+
+# Homelab is a single-node cluster: a PDB cannot protect the quorum there (node
+# loss takes all replicas anyway) and would wedge `kubectl drain` of the only
+# node after the first eviction. Keep it off; the chart default (on, with a
+# quorum-correct derived maxUnavailable) is meant for multi-node clusters.
+podDisruptionBudget:
+  enabled: false
