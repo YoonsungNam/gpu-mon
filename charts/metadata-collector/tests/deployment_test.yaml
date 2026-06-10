@@ -68,6 +68,18 @@ tests:
                 name: my-vcenter-secret
                 key: password
 
+  - it: renders extra env entries as children of the env list
+    set:
+      env:
+        - name: EXTRA_VAR
+          value: hello
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: EXTRA_VAR
+            value: hello
+
   - it: has liveness probe on /health
     asserts:
       - equal:
