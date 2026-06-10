@@ -21,6 +21,19 @@ It is written for a live cluster where:
 > `Replicated*` tables **read-only** until that metadata is rebuilt. Schedule a maintenance
 > window and stop writers first.
 
+> **Current-state scope (read first).** Today every table in `schemas/*.sql` is plain
+> `MergeTree`/`ReplacingMergeTree` — **none are `Replicated*`** — so keeper currently holds
+> only the `ON CLUSTER` distributed-DDL task queue (`/clickhouse/task_queue/ddl`), which is
+> transient and recreated on demand. Until the schemas are converted to `Replicated*`
+> engines: nothing goes read-only at cutover, `system.replicas` is **empty** (the Section 0
+> inventory and the Section 2/4 checks return zero rows), Section 3 has no targets
+> (`SYSTEM RESTORE REPLICA` errors `Table … is not replicated` on plain tables), and
+> Section 4's cross-replica insert test will **not** replicate — none of which means the
+> migration failed. The only present-day cutover concern is letting in-flight `ON CLUSTER`
+> DDL drain before repointing. The replication steps (Section 0 inventory, Section 2 step 3,
+> Section 3, and Section 4's replica checks) become operative **only after** the schema
+> migration to `Replicated*`.
+
 ![Migration flow across the six phases: ClickHouse coordinates with the old keeper (:2181)
 until cutover, then flips to the new keeper (:9181); the new keeper's metadata is rebuilt from
 on-disk parts via SYSTEM RESTORE REPLICA, and the old keeper is kept untouched as the rollback
@@ -55,7 +68,8 @@ anchor until decommission.](img/keeper-migration-flow.png)
   ClickHouse-side state before touching anything.
 
 ```sql
--- On any ClickHouse replica, capture the current replicated-table inventory:
+-- On any ClickHouse replica, capture the current replicated-table inventory
+-- (zero rows until schemas are Replicated* — see the scope note above):
 SELECT database, table, replica_path, is_readonly
 FROM system.replicas
 ORDER BY database, table;
@@ -192,9 +206,10 @@ works only while the table is read-only (the state it is already in after the re
 (`{shard}`, `{replica}`) and table DDL must be unchanged so the recreated paths match the
 originals.
 
-> If `RESTORE REPLICA` fails because a stale `/replicas/<name>` znode already exists (a re-run,
-> or RESTORE already succeeded for that replica), clear the keeper-side entry first, then retry.
-> This removes only metadata, not local data:
+> If `RESTORE REPLICA` fails because a stale `/replicas/<name>` znode already exists (left by
+> a partially-failed earlier run), clear the keeper-side entry first, then retry. If RESTORE
+> already *succeeded* for a replica, simply skip it — `SYSTEM DROP REPLICA` refuses to drop an
+> active replica. This removes only metadata, not local data:
 >
 > ```sql
 > -- Run from a DIFFERENT replica (DROP REPLICA cannot drop the local one), or use FROM ZKPATH:
@@ -208,22 +223,32 @@ originals.
 ## 4. Validate
 
 ```sql
+-- ON CLUSTER DDL smoke test — the one thing keeper coordinates on today's non-Replicated
+-- schemas. Both statements must complete (not time out) against the NEW keeper:
+CREATE TABLE <db>.keeper_smoke ON CLUSTER '<cluster>' (x UInt8) ENGINE = Null;
+DROP TABLE <db>.keeper_smoke ON CLUSTER '<cluster>' SYNC;
+
 -- No table should be read-only, and there should be no replication exceptions:
 SELECT database, table, is_readonly, zookeeper_exception
 FROM system.replicas WHERE is_readonly OR zookeeper_exception != '';
 
--- End-to-end replication check: insert on one replica, read from another.
+-- End-to-end replication check (Replicated* tables only — a row inserted into a plain
+-- MergeTree table will NOT appear on the other replica; that is engine behavior, not a
+-- failed migration):
 INSERT INTO <db>.<table> (...) VALUES (...);     -- on replica A
 SELECT count() FROM <db>.<table>;                 -- on replica B (after a moment)
 ```
 
+- The `ON CLUSTER` smoke DDL completes on all hosts — proves the new keeper serves the
+  distributed-DDL queue (today's actual dependency).
 - `system.replicas`: `is_readonly = 0`, `zookeeper_exception = ''` for all tables.
-- A test row written on one replica appears on the other shard replica.
+- A test row written on one replica appears on the other shard replica (`Replicated*` only).
 - `system.zookeeper` shows the rebuilt tree. It **requires** an explicit `path` predicate
   (a bare `SELECT * FROM system.zookeeper` errors):
 
   ```sql
-  -- Direct children of the keeper root; expect a 'tables' child after RESTORE:
+  -- Direct children of the keeper root; expect 'task_queue' today, plus a 'tables'
+  -- child once Replicated* schemas exist and RESTORE has run:
   SELECT name, numChildren FROM system.zookeeper WHERE path = '/clickhouse' ORDER BY name;
   -- Confirm a given table's replicas all re-registered:
   SELECT name FROM system.zookeeper
@@ -245,17 +270,25 @@ illustrative. Discover the real objects first and substitute them:
 ```sh
 # Identify the old (kubectl-applied) keeper resources in the monitoring namespace:
 kubectl -n monitoring get sts,cm,svc,pvc | grep -i keeper
+```
+
+**Before deleting anything:** (a) confirm no remaining reference to
+`clickhouse-keeper.monitoring.svc:2181` exists in any CHI or values file, and (b) export the
+hand-applied manifests — they are not tracked in any repo, and rollback needs a *runnable*
+old keeper (StatefulSet + ConfigMap), not just its data volume:
+
+```sh
+# Rollback copy of the untracked manifests (substitute the names you found):
+kubectl -n monitoring get sts/keeper cm/keeper-config -o yaml > old-keeper-manifests.yaml
 
 # Delete by the names you found (example names shown). Delete the PVC by name — a hand-applied
 # StatefulSet PVC (vct `data` + STS `keeper` => `data-keeper-0`) may carry no labels, so a
-# `-l` selector can silently match nothing.
+# `-l` selector can silently match nothing. Delete the PVC LAST, only once you are past the
+# rollback window (it holds the old keeper's replication metadata — see Rollback below).
 kubectl -n monitoring delete statefulset keeper
 kubectl -n monitoring delete configmap keeper-config
 kubectl -n monitoring delete pvc data-keeper-0      # frees the 10Gi PVC
 ```
-
-Confirm no remaining reference to `clickhouse-keeper.monitoring.svc:2181` exists in any CHI or
-values file before deleting the PVC (the PVC is the only rollback anchor — see below).
 
 ---
 
@@ -281,6 +314,15 @@ old keeper retains the original replication metadata:
    Disabling keeper is only valid when reverting the whole cluster to single-replica.
 2. `helmfile -e <env> -l name=clickhouse apply` and wait for the ClickHouse roll.
 3. The tables reattach to the original keeper paths — no `RESTORE REPLICA` needed.
+
+> ⚠️ **Rollback is clean only while the local part set is unchanged.** Parts written or merged
+> in `Replicated*` tables while attached to the new keeper (a Section 4 test insert, or
+> ingestion resumed after validation) are unknown to the old keeper: on reattach, ClickHouse
+> moves such unrecorded parts to `detached/` (not deleted, but invisible to queries), and a
+> large divergence trips the safety check that blocks replica startup without the
+> `force_restore_data` flag. Roll back **before resuming ingestion**, or be prepared to
+> re-attach the stranded parts by hand. (Plain `MergeTree` tables are unaffected — they never
+> consult keeper.)
 
 Do **not** delete the old keeper StatefulSet/ConfigMap/PVC (step 5) until the new keeper has
 been validated and you are past the rollback window.
