@@ -125,7 +125,8 @@ Do **not** proceed until exactly one `leader` and two `follower` nodes are repor
 > (preferred) anti-affinity, so on two nodes the three replicas pack as **2+1**. That schedules
 > fine and survives *pod*-level disruption (a pod crash, a rolling restart, or a drain of the
 > 1-pod node), but losing the node that holds **two** pods drops you to one and **breaks the
-> raft quorum**. The chart ships a `PodDisruptionBudget` (`maxUnavailable: 1`, gpu-mon #73) so a
+> raft quorum**. The chart ships a `PodDisruptionBudget` (`maxUnavailable` derived from
+> `replicaCount` as ceil(n/2) − 1 — `1` for the 3-replica default; gpu-mon #73/#75) so a
 > `kubectl drain` / rolling node upgrade keeps a 2-of-3 majority — but a PDB only blocks
 > *voluntary* evictions; it cannot protect against an *unplanned* loss of the 2-pod node. For
 > true node-failure HA, run keeper on **≥3 schedulable nodes** and switch to hard anti-affinity
