@@ -24,12 +24,11 @@ ClickHouse target tables:
 import ast
 import json
 import logging
-import os
 import re
 import shlex
 import subprocess
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import requests

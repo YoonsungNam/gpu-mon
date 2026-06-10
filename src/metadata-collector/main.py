@@ -11,6 +11,7 @@ import logging
 import os
 import signal
 import sys
+from pathlib import Path
 
 import yaml
 from adapters.s2_adapter import S2Adapter
@@ -18,7 +19,6 @@ from adapters.vmware_adapter import VMwareAdapter
 from health import HealthServer
 from scheduler import CollectorScheduler
 from writer.clickhouse_writer import ClickHouseWriter
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
