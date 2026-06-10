@@ -10,9 +10,15 @@ spec:
   # Cap how many keeper pods a *voluntary* disruption (node drain, rolling node
   # upgrade) can take down at once. With soft anti-affinity on a 2-node cluster the
   # 3 replicas pack as 2+1, so without this a drain of the 2-pod node would evict
-  # two replicas together and break the raft quorum. maxUnavailable: 1 keeps a
-  # 2-of-3 majority during drains.
+  # two replicas together and break the raft quorum.
+  # When maxUnavailable is unset (null), derive the quorum-correct value
+  # ceil(n/2) - 1 from replicaCount (3 -> 1, 5 -> 2, 2 -> 0, 1 -> 0) so the budget
+  # cannot silently permit a quorum-fatal eviction when replicaCount changes.
+  {{- if kindIs "invalid" .Values.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ max 0 (sub (div (add .Values.replicaCount 1) 2) 1) }}
+  {{- else }}
   maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "clickhouse-keeper.selectorLabels" . | nindent 6 }}

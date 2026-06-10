@@ -16,8 +16,14 @@ tests:
       - equal:
           path: spec.maxUnavailable
           value: 1
-      - isNotEmpty:
+      # Pin the selector content: it must equal the selectorLabels the keeper
+      # pods carry. A drift (e.g. switching to the labels helper, which adds
+      # managed-by) would match zero pods and silently disable protection.
+      - equal:
           path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: clickhouse-keeper
+            app.kubernetes.io/instance: RELEASE-NAME
 
   - it: is not rendered when disabled
     set:
@@ -33,3 +39,37 @@ tests:
       - equal:
           path: spec.maxUnavailable
           value: 2
+
+  # Auto-derivation: ceil(n/2) - 1 keeps a raft majority for any replicaCount.
+  - it: derives maxUnavailable 2 for a 5-replica quorum
+    set:
+      replicaCount: 5
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 2
+
+  - it: derives maxUnavailable 0 for 2 replicas (no fault tolerance to spend)
+    set:
+      replicaCount: 2
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 0
+
+  - it: derives maxUnavailable 0 for a single replica
+    set:
+      replicaCount: 1
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 0
+
+  - it: explicit maxUnavailable overrides the derivation
+    set:
+      replicaCount: 5
+      podDisruptionBudget.maxUnavailable: 1
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
